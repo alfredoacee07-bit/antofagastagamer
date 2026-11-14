@@ -1,0 +1,43 @@
+/* =====================================================================
+   prueba.css — Estilos del panel del ambiente de prueba (prueba.html)
+   ===================================================================== */
+
+.pr-cinta { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 900; background: #c77dff; color: #1a0b2e;
+  font: bold 12px sans-serif; padding: 3px 12px; border-radius: 0 0 10px 10px; letter-spacing: 1px; }
+.pr-cinta a { color: #1a0b2e; }
+
+.pr-boton { position: fixed; left: 14px; bottom: 84px; z-index: 950; display: inline-flex; gap: 6px; align-items: center;
+  font: bold 14px sans-serif; padding: 10px 14px; min-height: 44px; border-radius: 999px; border: 2px solid #c77dff;
+  background: #2a1745; color: #f1e4ff; cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+.pr-boton .icono { width: 18px; height: 18px; }
+
+.pr-panel { position: fixed; top: 0; left: 0; bottom: 0; width: 330px; max-width: 92vw; z-index: 960; overflow-y: auto;
+  background: #120c24; border-right: 2px solid #c77dff; color: #eef2ff; font: 14px sans-serif; padding: 12px 14px 40px;
+  transform: translateX(-105%); transition: transform 0.25s ease; box-shadow: 8px 0 30px rgba(0, 0, 0, 0.5); }
+.pr-panel.abierto { transform: none; }
+.pr-cabeza { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.pr-cabeza b { display: inline-flex; gap: 6px; align-items: center; color: #e2c6ff; font-size: 16px; }
+.pr-cabeza .icono { width: 18px; height: 18px; }
+.pr-cerrar { background: none; border: 0; color: #eef2ff; font-size: 26px; cursor: pointer; min-width: 40px; min-height: 40px; }
+.pr-nota { color: #aab4dd; font-size: 12px; margin: 4px 0 8px; }
+.pr-panel details { border: 1px solid rgba(199, 125, 255, 0.35); border-radius: 10px; padding: 6px 10px; margin: 8px 0; }
+.pr-panel summary { cursor: pointer; font-weight: bold; padding: 4px 0; color: #e2c6ff; }
+.pr-panel p { margin: 8px 0 4px; }
+.pr-fila { display: grid; grid-template-columns: 78px 1fr; gap: 6px; align-items: center; margin: 6px 0; }
+.pr-fila span { color: #aab4dd; font-size: 13px; }
+.pr-panel select { width: 100%; min-height: 34px; background: #1d1538; color: #eef2ff; border: 1px solid #5a3f8a; border-radius: 8px; font: inherit; font-size: 13px; }
+.pr-botones { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pr-botones button { font: inherit; font-size: 13px; min-height: 36px; min-width: 40px; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+  background: #2a1f4d; color: #eef2ff; border: 1px solid #5a3f8a; display: inline-flex; gap: 5px; align-items: center; }
+.pr-botones button:hover { border-color: #c77dff; }
+.pr-botones button .icono { width: 15px; height: 15px; }
+.pr-botones .pr-fuerte { background: #c77dff; color: #1a0b2e; font-weight: bold; border-color: #c77dff; }
+.pr-check { display: flex; gap: 8px; align-items: center; margin: 6px 0; cursor: pointer; }
+.pr-check input { width: 18px; height: 18px; }
+.pr-aviso { background: #1f3b2c; border: 1px solid #3ddc84; color: #c9f7dc; border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 6px 0; }
+.pr-aviso.malo { background: #3b1f28; border-color: #ff5c7a; color: #ffd0da; }
+.pr-estado div { display: grid; grid-template-columns: 78px 1fr; gap: 6px; padding: 3px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font-size: 12px; }
+.pr-estado span { color: #aab4dd; }
+.pr-estado b { font-weight: normal; }
+.pr-estado b.ok { color: #3ddc84; font-weight: bold; }
+.pr-estado b.no { color: #ff9aa9; }

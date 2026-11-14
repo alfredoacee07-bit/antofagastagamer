@@ -1779,4 +1779,13 @@
   construirPanel();
   irAFase(0);
 
+  // Solo en prueba.html (ambiente de prueba): atajos para el panel de pruebas (js/prueba.js)
+  if (window.MODO_PRUEBA) {
+    window.PruebaJuego = {
+      estado: estado, irAFase: irAFase, irHangar: irHangar, redibujar: dibujarFase, cambioDiseno: cambioDiseno,
+      practicar: practicar, lanzar: lanzar, decirPaz: decirPaz, cerrarModal: cerrarModal,
+      recursos: function () { return Motor.calcularRecursos(estado); }
+    };
+  }
+
 })();
