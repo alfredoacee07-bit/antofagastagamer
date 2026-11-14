@@ -81,6 +81,18 @@
   <div class="caja"><b>Energía solar e inverso del cuadrado.</b> En Marte (1,52 veces más lejos del Sol que la Tierra) llega 1 ÷ 1,52² ≈ 43% de la luz. Lo mismo pasa con las señales de radio: al doble de distancia, la señal es 4 veces más débil.</div>
   <div class="caja"><b>Ecuación del cohete (Tsiolkovsky).</b> Combustible = masa de la nave × (e<sup>Δv ÷ (Isp × 9,81)</sup> − 1). Un motor de hidracina (Isp ≈ 220 s) necesita mucho más combustible que uno eléctrico (Isp ≈ 1.500 s), pero el eléctrico empuja tan suave que el viaje tarda más.</div>
   <div class="caja"><b>Cuello de botella de los datos.</b> Una nave solo es útil si sus datos llegan a la Tierra. Datos generados &gt; datos enviados = ciencia perdida.</div>
+  <div class="caja"><b>Cohetes por etapas y reutilizables.</b> Soltar un tanque vacío hace más liviano al resto del cohete; por eso casi todos tienen 2 o 3 etapas. Para despegar, el empuje debe superar al peso. Una primera etapa que aterriza se puede volver a usar, pero lleva patas, aletas y combustible de reserva: cuesta más la primera vez y lleva menos carga.</div>
+  <div class="caja"><b>Ventanas de lanzamiento.</b> La Tierra y Marte giran a distinta velocidad. El viaje más barato sale cuando Marte va unos 44° adelante de la Tierra, y esa posición se repite cada ~26 meses. El juego usa posiciones reales de NASA JPL Horizons: las ventanas aparecen en diciembre de 2028–enero de 2029 y en febrero–marzo de 2031.</div>
+  <div class="caja"><b>Orientarse por las estrellas.</b> Las naves usan un rastreador de estrellas: una cámara compara el cielo con un mapa. Desde Chile se puede encontrar el Polo Sur celeste prolongando el palo largo de la Cruz del Sur (de Gacrux a Acrux) unas 4,5 veces.</div>
+
+  <h2>6b. Formas de jugar</h2>
+  <ul>
+    <li><b>Misión completa:</b> las 6 fases con presupuesto, ideal para una clase de 90 minutos.</li>
+    <li><b>Misión rápida:</b> un contrato con objetivos y reloj (12 a 15 minutos), con ranking por contrato.</li>
+    <li><b>Modo libre:</b> sin límite de presupuesto, para experimentar (no entra al ranking).</li>
+    <li><b>Modo equipo:</b> de 2 a 4 estudiantes con roles (directora, ingeniera, científica y comunicaciones).</li>
+  </ul>
+  <p><b>Ambiente de prueba:</b> abra <code>prueba.html</code> para preparar la clase. Tiene un panel con atajos para armar una misión lista, saltar a cualquier fase, jugar cada desafío y acelerar la simulación. Antes de la clase use "Borrar todo" para dejar limpios los récords del computador.</p>
 
   <h2>7. Preguntas de reflexión y respuestas orientadoras</h2>
   <ol>
@@ -100,7 +112,7 @@
   </table>
 
   <h2>9. Sobre los datos</h2>
-  <p>Los valores del juego son <b>simplificados y redondeados</b> para que sean fáciles de usar, pero se basan en misiones y cohetes reales. Las capacidades de los cohetes hacia la Luna, Marte y asteroides son aproximaciones. Si un enlace dejó de funcionar, busque el título en el sitio de la organización.</p>
+  <p>Los valores del juego son <b>simplificados y redondeados</b> para que sean fáciles de usar, pero se basan en misiones y cohetes reales. Las capacidades de los cohetes hacia la Luna, Marte y asteroides son aproximaciones. Las posiciones de la Tierra, Marte y Apofis (2027–2032) son reales, descargadas de NASA JPL Horizons; el costo extra por lanzar fuera de la ventana es un modelo simplificado para aprender. Si un enlace dejó de funcionar, busque el título en el sitio de la organización.</p>
   <div id="fuentes"></div>
 </main>
 
@@ -111,6 +123,9 @@
 <script src="js/escenarios/luna.js"></script>
 <script src="js/escenarios/marte.js"></script>
 <script src="js/escenarios/apofis.js"></script>
+<script src="js/datos/motores.js"></script>
+<script src="js/datos/trayectorias.js"></script>
+<script src="js/datos/estrellas.js"></script>
 <script>
   // Llena la tabla de escenarios y la lista de fuentes desde los datos del juego
   (function () {

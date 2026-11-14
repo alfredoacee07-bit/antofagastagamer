@@ -58,11 +58,13 @@
   // Grupos para mostrar las fuentes ordenadas
   const GRUPOS_FUENTES = [
     { nombre: "Piezas de la nave y física", ids: ["nasa_sst", "nasa_sst_power", "tsiolkovsky", "purdue_prop", "smart1", "dsn", "swpc", "esa_debris"] },
-    { nombre: "Cohetes", ids: ["electron", "capstone", "rideshare_2026", "pslv", "mom", "spacex", "falcon_heavy", "elvperf"] },
+    { nombre: "Cohetes", ids: ["electron", "capstone", "rideshare_2026", "pslv", "mom", "spacex", "falcon_heavy", "elvperf", "deltav"] },
     { nombre: "Tierra y Chile", ids: ["iss", "landsat9", "sentinel2", "iceye", "dga_glaciares", "meteored_glaciares", "cr2_megasequia", "goesr", "goes_chile_fires", "nasa_chile_rayos", "sernageomin"] },
     { nombre: "Luna", ids: ["moon_facts", "lro", "lcross", "lend", "artemis"] },
     { nombre: "Marte", ids: ["mars_facts", "mro", "maven", "conjuncion", "opportunity"] },
-    { nombre: "Asteroide Apofis", ids: ["apophis_esa", "apophis_nasa", "osiris_apex", "hera"] }
+    { nombre: "Asteroide Apofis", ids: ["apophis_esa", "apophis_nasa", "osiris_apex", "hera"] },
+    { nombre: "Planificación del viaje", ids: ["horizons", "mars2020", "osirisrex"] },
+    { nombre: "Cielo y orientación", ids: ["estrellas", "constelaciones"] }
   ];
 
   const fmt = Motor.fmt;
@@ -426,15 +428,13 @@
   function pantallaModos() {
     let html = '<div class="titulo-fase"><span class="titulo-icono">' + ic("play") + '</span><div>' +
       '<p class="num-fase">Formas de jugar</p><h2>Elige cómo jugar</h2></div></div>' +
-      '<p class="intro">Cada modo es una forma distinta de vivir la misión. Los marcados como "Próximamente" llegarán en las siguientes etapas.</p>' +
+      '<p class="intro">Cada modo es una forma distinta de vivir la misión.</p>' +
       '<div class="grid-tarjetas modos">';
-    DATOS.modos.forEach(function (m) {
-      html += m.disponible
-        ? '<div class="tarjeta elegible modo-tarjeta" role="button" tabindex="0" data-accion="elegirModoJuego" data-id="' + m.id + '">' +
-          '<div class="icono-grande-svg">' + ic(m.icono) + '</div><h3>' + m.nombre + '</h3><p>' + m.descripcion + '</p>' +
-          '<span class="etiqueta-chip">' + ic("reloj") + ' ' + m.duracion + '</span></div>'
-        : '<div class="tarjeta modo-tarjeta bloqueada"><div class="icono-grande-svg">' + ic(m.icono) + '</div><h3>' + m.nombre + '</h3><p>' + m.descripcion + '</p>' +
-          '<span class="etiqueta-chip">' + ic("candado") + ' Próximamente</span></div>';
+    // Solo se muestran los modos disponibles (disponible: true en js/datos/contratos.js)
+    DATOS.modos.filter(function (m) { return m.disponible; }).forEach(function (m) {
+      html += '<div class="tarjeta elegible modo-tarjeta" role="button" tabindex="0" data-accion="elegirModoJuego" data-id="' + m.id + '">' +
+        '<div class="icono-grande-svg">' + ic(m.icono) + '</div><h3>' + m.nombre + '</h3><p>' + m.descripcion + '</p>' +
+        '<span class="etiqueta-chip">' + ic("reloj") + ' ' + m.duracion + '</span></div>';
     });
     return html + '</div>';
   }
@@ -845,7 +845,7 @@
       html += '</ul>' + v.notas.map(function (n) { return '<p class="' + (v.bonoCiencia ? "texto-bien" : "texto-mal") + '">' + ic(v.bonoCiencia ? "trofeo" : "alerta") + ' ' + n + '</p>'; }).join("");
     }
     if (c.meta) html += '<p class="nota">' + ic("alerta") + ' <b>Paso cercano:</b> ' + DATOS.pasoApofis.fechaTexto + ', a ' + fmt(DATOS.pasoApofis.distanciaKm, 0) + ' km del centro de la Tierra. ' + c.meta.texto + '</p>';
-    html += fuentesMini(["horizons"].concat(c.meta ? ["apophis"] : [])) + '</div></div></div>';
+    html += fuentesMini(["horizons"].concat(c.meta ? ["apophis_nasa"] : [])) + '</div></div></div>';
     return html;
   }
 

@@ -127,15 +127,13 @@ DATOS.tiposViaje = {
 Object.assign(DATOS.fuentes, {
   horizons: { titulo: "Horizons System", org: "NASA JPL", url: "https://ssd.jpl.nasa.gov/horizons/",
     usado: "Posiciones reales de la Tierra, Marte y Apofis (2027–2032) y el paso cercano de Apofis del 13 de abril de 2029." },
-  apophis: { titulo: "Apophis", org: "NASA Science", url: "https://science.nasa.gov/solar-system/asteroids/apophis/",
-    usado: "El paso cercano de 2029 y la misión OSIRIS-APEX." },
   mars2020: { titulo: "Mars 2020 Perseverance", org: "NASA", url: "https://science.nasa.gov/mission/mars-2020-perseverance/",
     usado: "Lanzamiento en julio de 2020, dentro de la ventana hacia Marte que se abre cada ~26 meses." },
   osirisrex: { titulo: "OSIRIS-REx", org: "NASA", url: "https://science.nasa.gov/mission/osiris-rex/",
-    usado: "Asistencia gravitatoria de la Tierra en septiembre de 2017." },
-  capstone: { titulo: "CAPSTONE", org: "NASA", url: "https://www.nasa.gov/mission/capstone/",
-    usado: "Viaje de baja energía a la Luna de unos 4 meses (2022)." }
+    usado: "Asistencia gravitatoria de la Tierra en septiembre de 2017." }
 });
+// CAPSTONE ya estaba en js/datos.js: se agrega lo que se usa aquí
+DATOS.fuentes.capstone.usado += " Viaje de baja energía de unos 4 meses (2022).";
 
 // Explicaciones para "¿Por qué?" y la Ingeniera Paz
 Object.assign(DATOS.porQue, {

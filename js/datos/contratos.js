@@ -2,7 +2,7 @@
    contratos.js — Modos de juego y contratos (fácil de editar)
    ---------------------------------------------------------------------
    MODOS: aparecen en la pantalla "Elige cómo jugar".
-     disponible: false → se muestra como "Próximamente" (etapa en desarrollo).
+     disponible: false → no se muestra en el juego (ideas para una versión futura).
 
    CONTRATOS (Misión rápida): un encargo con objetivos claros y un reloj.
      escenario   → id del escenario (chile, incendios, luna, marte, apofis)

@@ -744,7 +744,7 @@ body.calidad-baja .panel-recursos, body.calidad-baja .btn-menu { backdrop-filter
   .modal-porque { flex-direction: column; }
 }
 
-/* ---------- Cohete propio por etapas (etapa B) ---------- */
+/* ---------- Cohete propio por etapas ---------- */
 .constructor-cohete { margin-top: 16px; }
 .constructor-cohete.seleccionada { border-color: var(--acento); box-shadow: 0 0 0 2px rgba(255, 183, 3, 0.35), var(--sombra); }
 .cc-cabeza { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
@@ -776,7 +776,7 @@ body.calidad-baja .panel-recursos, body.calidad-baja .btn-menu { backdrop-filter
 .cc-informe { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
 .cc-informe-etapa { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--tarjeta-borde); border-radius: 12px; padding: 10px; }
 .cc-informe-etapa small { color: var(--texto-suave); }
-/* ---------- Planificador del viaje (etapa C) ---------- */
+/* ---------- Planificador del viaje ---------- */
 .planificador .cc-fila > span:first-child { min-width: 110px; }
 .etiqueta-linea { margin: 14px 0 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-weight: bold; }
 .etiqueta-linea small { font-weight: normal; color: var(--texto-suave); }
