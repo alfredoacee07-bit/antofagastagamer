@@ -24,7 +24,7 @@ DATOS.escenarios.push({
   orbitaInicial: "polarBaja",
   orbitaRecomendada: "polarBaja",
   instrumentosRecomendados: ["neutrones", "shadowcam"],
-  eventos: ["tormenta", "antena", "mascons", "eclipseLunar", "cortocircuito", "rueda"],
+  eventos: ["tormenta", "antena", "mascons", "eclipseLunar", "estrellas", "cortocircuito", "rueda"],
   fuentes: ["moon_facts", "lro", "lcross", "lend", "capstone", "artemis", "smart1"],
   intro: { titulo: "Misión Hielo Lunar", texto: "En el fondo de algunos cráteres del polo sur hace −230 °C y nunca llega el Sol. ¡Ahí se esconde el hielo! Necesitarás instrumentos que 'vean' en la oscuridad." },
   preguntas: [

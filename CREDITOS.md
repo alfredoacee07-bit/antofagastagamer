@@ -95,6 +95,10 @@ Los íconos de botones y barras (`js/iconos.js`) fueron dibujados para este proy
 
 Las fuentes de todos los datos (cohetes, órbitas, instrumentos y misiones) están en `js/datos.js` (sección `fuentes`), en el botón "Fuentes" del juego y en `guia-docente.html`.
 
+- **Posiciones de la Tierra, Marte y Apofis (2027–2032)** y el **paso cercano de Apofis** (13 de abril de 2029, ~38.040 km del centro de la Tierra): descargadas de **NASA JPL Horizons** (https://ssd.jpl.nasa.gov/horizons/) el 14 de noviembre de 2026 y guardadas en `js/datos/trayectorias.js` para usarse sin internet. Datos públicos de NASA/JPL.
+- **Estrellas del minijuego de orientación**: posiciones y brillos redondeados del *Bright Star Catalogue* de Yale (http://tdc-www.harvard.edu/catalogs/bsc5.html). Nombres de estrellas aprobados por la Unión Astronómica Internacional. Están en `js/datos/estrellas.js`.
+- **Motores y cohete por etapas**: valores redondeados inspirados en motores reales (Rutherford, Merlin 1D, RL10) y el presupuesto de delta-v de cada destino; ver `js/datos/motores.js`.
+
 ## 4. Música
 
 Las 6 pistas se **componen con código** en ``js/audio.js`` usando la Web Audio API. Fueron creadas para este proyecto y no usan grabaciones ni material de terceros.

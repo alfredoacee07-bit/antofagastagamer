@@ -104,6 +104,16 @@ const Motor = (function () {
     return coh.costo;
   }
 
+  // Kilos que el cohete lleva a un destino, según la fecha de lanzamiento elegida.
+  // Si la fecha pide más velocidad (viaje.extra), el cohete lleva menos.
+  function capacidad(coh, e, destino, viaje) {
+    if (!coh) return 0;
+    if (!viaje || viaje.sinFecha || (!viaje.extra && viaje.factorCapacidad === 1)) return coh.capacidad[destino] || 0;
+    if (viaje.imposible) return 0;
+    if (coh.propio && typeof Cohetes !== "undefined") return Cohetes.cargaMaxima(e.coheteDiseno || Cohetes.disenoPorDefecto(), destino, viaje.extra);
+    return Math.floor((coh.capacidad[destino] || 0) * viaje.factorCapacidad / 10) * 10;
+  }
+
   function nivel(uso, amarilloDesde) {
     if (uso > 1) return "rojo";
     if (uso >= amarilloDesde) return "amarillo";
@@ -127,14 +137,18 @@ const Motor = (function () {
     const pres = presupuesto(e);
     const duracionAnios = esc.duracionDias / 365;
 
+    // --- Planificador del viaje: fecha y tipo de trayectoria (trayectorias.js) ---
+    const viaje = typeof Trayectorias !== "undefined" ? Trayectorias.evaluar(esc.id, e.trayectoria, esc) : null;
+
     // --- Propulsión y combustible (ecuación del cohete) ---
     const motor = p.propulsion && p.propulsion.isp > 0 ? p.propulsion : null;
-    const deltaV = (orb.deltaVLlegada + (motor ? orb.deltaVAnual * duracionAnios : 0)) * cfg.margenDeltaV;
+    const deltaVLlegada = orb.deltaVLlegada * (viaje ? viaje.factorLlegada : 1);
+    const deltaV = (deltaVLlegada + (motor ? orb.deltaVAnual * duracionAnios : 0)) * cfg.margenDeltaV;
     const masaSeca = suma(todo, "masa");
     const faltaMotor = orb.deltaVLlegada > 0 && !motor;
     const masaCombustible = faltaMotor ? 0 : combustible(masaSeca, deltaV, motor ? motor.isp : 0);
     const masa = masaSeca + masaCombustible;
-    const capacidadCohete = coh ? coh.capacidad[orb.destinoCohete] : null;
+    const capacidadCohete = coh ? capacidad(coh, e, orb.destinoCohete, viaje) : null;
 
     // --- Presupuesto ---
     const costoPiezas = suma(todo, "costo");
@@ -159,7 +173,18 @@ const Motor = (function () {
     const bajada = bajadaGbDia(p.antena, orb);
 
     // --- Viaje ---
-    const diasViaje = esc.diasViaje + (p.propulsion && p.propulsion.isp > 1000 ? esc.diasViajeElectrico : 0);
+    const diasViaje = (viaje ? viaje.diasViaje : esc.diasViaje) + (p.propulsion && p.propulsion.isp > 1000 ? esc.diasViajeElectrico : 0);
+    // Con motor eléctrico el viaje es más largo: se recalcula la llegada (y si alcanza la meta)
+    if (viaje && viaje.mes && diasViaje !== viaje.diasViaje) {
+      viaje.diasViaje = diasViaje;
+      viaje.llegada = Trayectorias.sumarMeses(viaje.mes, Math.round(diasViaje / 30.44));
+      viaje.posLlegada = Trayectorias.fila(viaje.llegada);
+      if (viaje.config.meta) {
+        viaje.bonoCiencia = viaje.llegada <= viaje.config.meta.hasta ? viaje.config.meta.bonoCiencia : 0;
+        viaje.notas = [viaje.bonoCiencia ? "¡Llegas antes del paso cercano! +" + Math.round(viaje.bonoCiencia * 100) + "% de ciencia." : "Llegas después del paso cercano de abril de 2029: te lo pierdes."];
+      }
+      viaje.notas.push("El motor eléctrico alarga el viaje " + esc.diasViajeElectrico + " días.");
+    }
 
     // --- Vida útil: manda lo que se gaste primero ---
     const limites = [];
@@ -177,7 +202,8 @@ const Motor = (function () {
     const vidaAnios = limites[0].anios;
     const causaVida = limites[0].causa;
 
-    const ciencia = cienciaBase(ins, orb, p.orientacion);
+    // Llegar a tiempo a un evento (como el paso cercano de Apofis) da más ciencia
+    const ciencia = cienciaBase(ins, orb, p.orientacion) * (1 + (viaje ? viaje.bonoCiencia : 0));
     const maxCienciaEscenario = suma(esc.instrumentos, "ciencia");
 
     /* --- Las 6 barras del panel --- */
@@ -234,7 +260,7 @@ const Motor = (function () {
       genMax: genMax, genProm: genProm,
       capBat: capBat, necesidadSombra: necesidadSombra, descarga: descarga, limiteDescarga: limiteDescarga,
       gbDia: gbDia, memoria: memoria, bajada: bajada,
-      diasViaje: diasViaje,
+      diasViaje: diasViaje, viaje: viaje,
       vidaAnios: vidaAnios, causaVida: causaVida, duracionAnios: duracionAnios,
       cienciaBase: ciencia, maxCienciaEscenario: maxCienciaEscenario,
       barras: barras
@@ -247,6 +273,8 @@ const Motor = (function () {
     if (!e.orbita) problemas.push("Elige una órbita.");
     if (!e.cohete) problemas.push("Elige un cohete.");
     if (r.faltaMotor) problemas.push("Esta órbita necesita propulsión: vuelve a la fase 2 y elige un motor.");
+    if (r.viaje && r.viaje.sinFecha) problemas.push("Elige la fecha de lanzamiento en el planificador del viaje.");
+    else if (r.viaje && r.viaje.imposible) problemas.push("En esa fecha el viaje necesita demasiada energía: ningún cohete lo logra. Elige un mes verde o amarillo.");
     if (e.orbita && e.cohete && !r.faltaMotor) {
       if (r.capacidadCohete === 0) problemas.push(r.cohete.nombre + " no puede llegar a este destino.");
       else if (r.masa > r.capacidadCohete) problemas.push("Tu nave pesa " + fmt(r.masa, 0) + " kg (con combustible) y " + r.cohete.nombre + " solo lleva " + fmt(r.capacidadCohete, 0) + " kg a este destino.");
@@ -407,7 +435,7 @@ const Motor = (function () {
 
   return {
     buscar: buscar, fmt: fmt, escenario: escenario, dificultad: dificultad, orbita: orbita, presupuesto: presupuesto,
-    piezas: piezas, opcionAjustada: opcionAjustada, combustible: combustible, costoCohete: costoCohete,
+    piezas: piezas, opcionAjustada: opcionAjustada, combustible: combustible, costoCohete: costoCohete, capacidad: capacidad,
     calcularRecursos: calcularRecursos, verificarLanzamiento: verificarLanzamiento,
     generarInforme: generarInforme, bajadaGbDia: bajadaGbDia
   };

@@ -529,7 +529,7 @@
     Modos.detenerReloj();
     if (estado.modoJuego === "rapida") {
       const c = Modos.contrato(estado.contrato);
-      if (estado.escenario !== c.escenario) { estado.escenario = c.escenario; estado.instrumentos = []; estado.orbita = null; estado.cohete = null; }
+      if (estado.escenario !== c.escenario) { estado.escenario = c.escenario; estado.instrumentos = []; estado.orbita = null; estado.cohete = null; estado.trayectoria = null; }
       Modos.iniciarReloj(c.minutos, function () {
         if (estado.lanzamiento) return;                 // ya lanzó a tiempo
         Sonido.efecto("alarma");
@@ -757,13 +757,16 @@
     });
     html += '</div>';
 
-    html += '<h3 class="subtitulo">2. Elige el cohete</h3><div class="grid-tarjetas tres">';
+    const conPlan = !!Trayectorias.config(esc.id);
+    if (conPlan) html += planificadorViaje(r, esc);
+
+    html += '<h3 class="subtitulo">' + (conPlan ? "3" : "2") + '. Elige el cohete</h3><div class="grid-tarjetas tres">';
     DATOS.cohetes.forEach(function (c) {
       const sel = estado.cohete === c.id;
       let compat = '<span class="compat neutro">Elige primero una órbita</span>';
       let capTexto = "—";
       if (estado.orbita) {
-        const cap = c.capacidad[r.orbita.destinoCohete];
+        const cap = Motor.capacidad(c, estado, r.orbita.destinoCohete, r.viaje);
         capTexto = cap > 0 ? fmt(cap, 0) + " kg" : "No llega";
         if (cap === 0) compat = '<span class="compat mal">' + ic("cruz") + ' No llega a este destino</span>';
         else if (r.masa > cap) compat = '<span class="compat mal">' + ic("cruz") + ' Tu nave es muy pesada (sobran ' + fmt(r.masa - cap, 0) + ' kg)</span>';
@@ -788,12 +791,100 @@
     return html;
   }
 
+  /* ---------- Planificador del viaje (trayectorias.js + datos JPL Horizons) ---------- */
+  function planificadorViaje(r, esc) {
+    const c = Trayectorias.config(esc.id);
+    const sel = estado.trayectoria || { tipo: "directa", mes: null };
+    const v = r.viaje;
+    let html = '<h3 class="subtitulo">2. Planifica el viaje ' + pq("ventana") + '</h3><div class="tarjeta planificador">';
+
+    // Tipo de viaje
+    html += '<div class="cc-fila"><span>Tipo de viaje</span><div class="cc-chips">' + c.tipos.map(function (id) {
+      const t = DATOS.tiposViaje[id];
+      return '<button class="chip-opcion' + (sel.tipo === id ? " activa" : "") + '" data-accion="elegirTipoViaje" data-id="' + id + '">' + ic(t.icono) + ' ' + t.nombre + '</button>';
+    }).join("") + (c.tipos.indexOf("asistencia") >= 0 ? pq("asistencia") : "") + '</div></div>' +
+      '<p class="nota">' + ic("idea") + ' ' + v.tipoInfo.texto + ' <i>' + v.tipoInfo.ejemplo + '</i> ' + fuentesMini(v.tipoInfo.fuentes) + '</p>';
+
+    if (Trayectorias.usaFecha(esc.id)) {
+      const mejor = hayPistas() ? Trayectorias.mejorMes(esc.id, sel.tipo, esc) : null;
+      // Línea de tiempo: un botón por mes, agrupados por año
+      const porAnio = {};
+      Trayectorias.meses(esc.id).forEach(function (m) { (porAnio[m.slice(0, 4)] = porAnio[m.slice(0, 4)] || []).push(m); });
+      html += '<p class="etiqueta-linea">' + ic("calendario") + ' Mes de lanzamiento <small>(colores: cuánta energía extra pide cada fecha)</small> ' + pq("efemerides") + '</p><div class="linea-meses">';
+      Object.keys(porAnio).forEach(function (anio) {
+        html += '<div class="fila-anio"><b>' + anio + '</b><div class="meses">' + porAnio[anio].map(function (m) {
+          const ev = Trayectorias.evaluar(esc.id, { mes: m, tipo: sel.tipo }, esc);
+          const q = Trayectorias.calidad(ev);
+          const marca = c.meta && m === DATOS.pasoApofis.mes ? " evento" : "";
+          return '<button class="mes mes-' + q + (sel.mes === m ? " activa" : "") + (m === mejor ? " mejor" : "") + marca + '" data-accion="elegirMes" data-mes="' + m + '" title="' +
+            Trayectorias.textoMes(m) + ': ' + (ev.imposible ? "imposible" : (ev.extra >= 0 ? "+" : "") + fmt(ev.extra, 2) + " km/s") + '">' + Trayectorias.textoMes(m).slice(0, 3) + '</button>';
+        }).join("") + '</div></div>';
+      });
+      html += '</div><p class="leyenda-meses"><span class="mes mes-buena"></span> Muy buena <span class="mes mes-media"></span> Se puede <span class="mes mes-mala"></span> Cara ' +
+        '<span class="mes mes-imposible"></span> Imposible' + (mejor ? ' · <span class="mes mejor"></span> Recomendado por Paz' : '') +
+        (c.meta ? ' · <span class="mes evento"></span> Paso cercano de Apofis' : '') + '</p>';
+    }
+
+    // Resumen y dibujo del sistema solar
+    html += '<div class="plan-cuerpo">';
+    if (v.posiciones) html += dibujoViaje(v, c);
+    html += '<div class="plan-resumen">';
+    if (v.sinFecha) html += '<p>' + ic("calendario") + ' <b>Elige un mes</b> en la línea de tiempo para ver dónde estarán los planetas.</p>';
+    else {
+      html += '<ul class="stats">';
+      if (v.mes) html += stat("cohete", "Lanzamiento: " + Trayectorias.textoMes(v.mes), null);
+      if (v.salida && v.salida !== v.mes) html += stat("orbita", "Pasa junto a la Tierra y sale hacia " + c.nombreCuerpo + ": " + Trayectorias.textoMes(v.salida), "asistencia");
+      if (v.fase !== undefined) html += stat("planeta", c.nombreCuerpo + " va " + fmt(v.fase, 0) + "° adelante de la Tierra (ideal: " + c.faseIdeal + "°)", "ventana");
+      if (v.distancia !== undefined) html += stat("planeta", c.nombreCuerpo + " está a " + fmt(v.distancia, 2) + " UA de la Tierra (" + fmt(v.distancia * 150, 0) + " millones de km)", "efemerides");
+      html += stat("reloj", "Viaje: " + fmt(v.diasViaje, 0) + " días" + (v.llegada ? " · llegada: " + Trayectorias.textoMes(v.llegada) : ""), "viaje");
+      if (v.factorLlegada !== 1) html += stat("llama", "Frenar al llegar cuesta " + Math.round((1 - v.factorLlegada) * 100) + "% menos", "deltaV");
+      if (v.imposible) html += stat("prohibido", "Energía extra: +" + fmt(v.extra, 1) + " km/s. ¡Imposible!", "extraViaje");
+      else if (Math.abs(v.extra) >= 0.005) html += stat("llama", "Energía extra del cohete: " + (v.extra > 0 ? "+" : "") + fmt(v.extra, 2) + " km/s → lleva " +
+        (v.factorCapacidad >= 1 ? Math.round((v.factorCapacidad - 1) * 100) + "% MÁS" : Math.round((1 - v.factorCapacidad) * 100) + "% menos") + " carga", "extraViaje");
+      else if (Trayectorias.usaFecha(esc.id)) html += stat("check", "¡Fecha ideal! El cohete no gasta energía extra.", "extraViaje");
+      html += '</ul>' + v.notas.map(function (n) { return '<p class="' + (v.bonoCiencia ? "texto-bien" : "texto-mal") + '">' + ic(v.bonoCiencia ? "trofeo" : "alerta") + ' ' + n + '</p>'; }).join("");
+    }
+    if (c.meta) html += '<p class="nota">' + ic("alerta") + ' <b>Paso cercano:</b> ' + DATOS.pasoApofis.fechaTexto + ', a ' + fmt(DATOS.pasoApofis.distanciaKm, 0) + ' km del centro de la Tierra. ' + c.meta.texto + '</p>';
+    html += fuentesMini(["horizons"].concat(c.meta ? ["apophis"] : [])) + '</div></div></div>';
+    return html;
+  }
+
+  // Dibujo del Sol, las órbitas y el camino de la nave (posiciones reales del mes elegido)
+  function dibujoViaje(v, c) {
+    const T = 240, cx = T / 2, cy = T / 2, esc = 62;
+    const pos = function (lon, r) { const a = lon * Math.PI / 180; return [cx + Math.cos(a) * r * esc, cy - Math.sin(a) * r * esc]; };
+    const p0 = v.posiciones, p1 = v.posLlegada || v.posiciones;
+    const tierra = pos(p0.tierra.lon, p0.tierra.r);
+    const objSalida = pos(p0[c.cuerpo].lon, p0[c.cuerpo].r), objLlegada = pos(p1[c.cuerpo].lon, p1[c.cuerpo].r);
+    const rOrbita = c.cuerpo === "marte" ? 1.52 : 0.92;
+    // Camino: avanza en el sentido de los planetas, cambiando de radio poco a poco
+    let dAng = p1[c.cuerpo].lon - p0.tierra.lon; while (dAng <= 20) dAng += 360; while (dAng > 380) dAng -= 360;
+    const puntos = [];
+    for (let k = 0; k <= 32; k++) {
+      const u = k / 32, ang = p0.tierra.lon + dAng * u, rad = p0.tierra.r + (p1[c.cuerpo].r - p0.tierra.r) * (1 - Math.cos(u * Math.PI)) / 2;
+      puntos.push(pos(ang, rad).map(function (n) { return n.toFixed(1); }).join(","));
+    }
+    return '<svg class="dibujo-viaje" viewBox="0 0 ' + T + ' ' + T + '" role="img" aria-label="Posiciones de la Tierra y ' + c.nombreCuerpo + '">' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="' + esc + '" class="orb-tierra"/>' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="' + (rOrbita * esc) + '" class="orb-obj"/>' +
+      (v.tipo === "asistencia" ? '<circle cx="' + (cx + 8) + '" cy="' + cy + '" r="' + (1.08 * esc) + '" class="orb-vuelta"/>' : '') +
+      '<polyline points="' + puntos.join(" ") + '" class="camino"/>' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="9" class="sol"/>' +
+      '<circle cx="' + tierra[0] + '" cy="' + tierra[1] + '" r="6" class="p-tierra"/>' +
+      '<circle cx="' + objSalida[0] + '" cy="' + objSalida[1] + '" r="5" class="p-obj-antes"/>' +
+      '<circle cx="' + objLlegada[0] + '" cy="' + objLlegada[1] + '" r="6" class="p-obj"/>' +
+      '<text x="' + (tierra[0] + 8) + '" y="' + (tierra[1] - 8) + '">Tierra</text>' +
+      '<text x="' + (objLlegada[0] + 8) + '" y="' + (objLlegada[1] + 14) + '">' + c.nombreCuerpo + ' al llegar</text>' +
+      '</svg>';
+  }
+
   /* ---------- Cohete propio por etapas (cohetes.js + datos/motores.js) ---------- */
   function tarjetaCohetePropio(r) {
     const sel = estado.cohete === "propio";
     const diseno = estado.coheteDiseno || Cohetes.disenoPorDefecto();
     const destino = estado.orbita ? r.orbita.destinoCohete : null;
-    const necesario = destino ? DATOS.deltaVDestino[destino] : null;
+    const extraViaje = r.viaje && !r.viaje.sinFecha ? r.viaje.extra : 0;
+    const necesario = destino ? DATOS.deltaVDestino[destino] + extraViaje : null;
     const a = Cohetes.analizar(diseno, estado.escenario ? r.masa : 0);
     const coh = Cohetes.objeto(diseno);
     const R = DATOS.reglasCohete;
@@ -841,9 +932,10 @@
     const tiempoTotal = a.etapas.reduce(function (t, e) { return t + e.tiempo; }, 0);
     html += '<div class="cc-resumen"><h4>' + ic("grafico") + ' Con tu nave de ' + fmt(estado.escenario ? r.masa : 0, 0) + ' kg encima</h4>' +
       (necesario
-        ? '<p>Delta-v total: <b>' + fmt(a.deltaV, 2) + ' km/s</b> · necesitas <b>' + fmt(necesario, 1) + ' km/s</b> para ' + r.orbita.nombre.toLowerCase() + ' ' + pq("deltaVCohete") + '</p>' +
+        ? '<p>Delta-v total: <b>' + fmt(a.deltaV, 2) + ' km/s</b> · necesitas <b>' + fmt(necesario, 1) + ' km/s</b> para ' + r.orbita.nombre.toLowerCase() +
+            (extraViaje ? ' (' + (extraViaje > 0 ? "+" : "") + fmt(extraViaje, 2) + ' por la fecha)' : '') + ' ' + pq("deltaVCohete") + '</p>' +
           '<div class="barra grande"><div class="barra-relleno relleno-' + (alcanza ? "verde" : (fr > 0.9 ? "amarillo" : "rojo")) + '" style="width:' + Math.max(3, fr * 100) + '%"></div></div>' +
-          '<p class="' + (alcanza ? "texto-bien" : "texto-mal") + '">' + ic(alcanza ? "check" : "cruz") + ' ' + (alcanza ? "¡Alcanza! Puede llevar hasta " + fmt(coh.capacidad[destino], 0) + " kg a este destino." : "No alcanza: agrega combustible, una etapa o un motor más eficiente.") + '</p>'
+          '<p class="' + (alcanza ? "texto-bien" : "texto-mal") + '">' + ic(alcanza ? "check" : "cruz") + ' ' + (alcanza ? "¡Alcanza! Puede llevar hasta " + fmt(Motor.capacidad(coh, estado, destino, r.viaje), 0) + " kg a este destino" + (extraViaje ? " en la fecha elegida" : "") + "." : "No alcanza: agrega combustible, una etapa o un motor más eficiente.") + '</p>'
         : '<p>Delta-v total: <b>' + fmt(a.deltaV, 2) + ' km/s</b>. Elige una órbita para saber si alcanza.</p>') +
       '<p><small>Despega con ' + fmt(a.masaDespegue / 1000, 1) + ' toneladas · costo ' + fmt(coh.costo, 1) + ' M USD</small></p>' +
       '<div class="cc-linea" title="Cuánto dura encendida cada etapa">' + a.etapas.map(function (e, k) {
@@ -1017,6 +1109,9 @@
   function empezarSimulacion() {
     const r = Motor.calcularRecursos(estado);
     bitacora("cohete", "<b>Despegue:</b> ¡El " + r.cohete.nombre + " lleva tu nave rumbo a " + r.escenario.destino + "!", "bien");
+    if (r.viaje && r.viaje.mes) bitacora("calendario", "<b>Ruta:</b> " + r.viaje.tipoInfo.nombre.toLowerCase() + ", lanzamiento en " + Trayectorias.textoMes(r.viaje.mes) +
+      ", llegada en " + Trayectorias.textoMes(r.viaje.llegada) + "." + (r.viaje.notas.length ? " " + r.viaje.notas[0] : ""), r.viaje.bonoCiencia ? "bien" : "");
+    else if (r.viaje && r.viaje.tipo === "bajaEnergia") bitacora("orbita", "<b>Ruta:</b> viaje de baja energía: más lento, pero frenar en la Luna costará menos combustible.", "");
     if (r.diasViaje > 0) concepto("viaje");
     document.querySelectorAll(".vel").forEach(function (b) { b.classList.toggle("activa", b.dataset.v === "1"); });
 
@@ -1318,6 +1413,9 @@
       stat("enviar", "Enviados a la Tierra: " + fmt(s.enviadoGB, 1) + " GB", "datosEnviados") +
       stat("basura", "Perdidos: " + fmt(s.perdidoGB, 1) + " GB", "comunicaciones") +
       (r.diasViaje ? stat("cohete", "Viaje: " + s.diasViaje + " días", "viaje") : "") +
+      (r.viaje && r.viaje.mes ? stat("calendario", "Lanzamiento: " + Trayectorias.textoMes(r.viaje.mes) + " · llegada: " + Trayectorias.textoMes(r.viaje.llegada) +
+        " · " + r.viaje.tipoInfo.nombre.toLowerCase() + (Math.abs(r.viaje.extra) >= 0.005 ? " · " + (r.viaje.extra > 0 ? "+" : "") + fmt(r.viaje.extra, 2) + " km/s por la fecha" : " · fecha ideal"), "ventana") : "") +
+      (r.viaje && r.viaje.bonoCiencia ? stat("trofeo", "Llegaste antes del paso cercano: +" + Math.round(r.viaje.bonoCiencia * 100) + "% de ciencia", "efemerides") : "") +
       (r.masaCombustible ? stat("gota", "Combustible: " + fmt(r.masaCombustible, 0) + " kg", "ecuacionCohete") : "") + '</ul></div>';
 
     if (inf.mal.length) html += listaDiag("llave", "¿Qué falló y cómo mejorarlo?", inf.mal.map(function (m) {
@@ -1501,6 +1599,7 @@
           estado.instrumentos = [];
           estado.orbita = null;
           estado.cohete = null;
+          estado.trayectoria = null;
           if (Motor.escenario(estado).propulsionObligatoria && estado.componentes.propulsion === "ninguna") estado.componentes.propulsion = null;
         }
         cambioDiseno();
@@ -1524,6 +1623,15 @@
         break;
       }
       case "elegirOrbita": estado.orbita = el.dataset.id; cambioDiseno(); break;
+      case "elegirMes":
+        estado.trayectoria = Object.assign({ tipo: "directa" }, estado.trayectoria, { mes: el.dataset.mes });
+        cambioDiseno(); concepto("planificador");
+        break;
+      case "elegirTipoViaje":
+        estado.trayectoria = Object.assign({ mes: null }, estado.trayectoria, { tipo: el.dataset.id });
+        cambioDiseno();
+        if (el.dataset.id === "asistencia" && !estado.conceptosVistos.asistenciaPaz) { estado.conceptosVistos.asistenciaPaz = true; decirPaz(DATOS.porQue.asistencia.titulo, DATOS.porQue.asistencia.texto); }
+        break;
       case "cohMotor": case "cohTanque": case "cohCantidad": case "cohReutil": case "cohAgregarEtapa": case "cohQuitarEtapa":
         cambiarCohete(el.dataset.accion, el); break;
       case "elegirCohete": {
@@ -1580,7 +1688,7 @@
       case "reiniciar":
         Modos.detenerReloj();
         estado.contrato = null; estado.modoJuego = "completa"; estado.lanzamiento = null;
-        estado.escenario = null; estado.instrumentos = []; estado.orbita = null; estado.cohete = null; estado.resultado = null; estado.faseMax = 0;
+        estado.escenario = null; estado.instrumentos = []; estado.orbita = null; estado.cohete = null; estado.trayectoria = null; estado.resultado = null; estado.faseMax = 0;
         DATOS.componentes.forEach(function (c) { estado.componentes[c.id] = null; });
         irAFase(0);
         break;
@@ -1588,7 +1696,7 @@
   }
 
   // Sonido de cada botón: "seleccionar" al elegir algo, "clic" en el resto
-  const ACCIONES_ELEGIR = ["elegirEscenario", "elegirPieza", "alternarInstrumento", "elegirOrbita", "elegirCohete", "elegirDificultad", "numJugadores",
+  const ACCIONES_ELEGIR = ["elegirEscenario", "elegirPieza", "alternarInstrumento", "elegirOrbita", "elegirCohete", "elegirDificultad", "numJugadores", "elegirMes", "elegirTipoViaje",
     "cohMotor", "cohTanque", "cohCantidad", "cohReutil", "cohAgregarEtapa", "cohQuitarEtapa"];
   const ACCIONES_SIN_CLIC = ["probarEfecto", "lanzar", "decidir", "jugarMinijuego", "pilotoAutomatico", "estacion"];   // ya tienen su propio sonido
 

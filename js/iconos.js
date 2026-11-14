@@ -23,6 +23,8 @@ const Iconos = (function () {
     orbita: '<ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-20 12 12)"/><circle cx="12" cy="12" r="3"/>',
     llama: '<path d="M12 22a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-1.5-2-1.5-3C7 11 6 13.5 6 16a6 6 0 0 0 6 6z"/>',
     estrella: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    calendario: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M7.5 14h2M11 14h2M14.5 14h2M7.5 17h2M11 17h2"/>',
+    constelacion: '<circle cx="5" cy="17" r="1.6"/><circle cx="10" cy="7" r="1.6"/><circle cx="15" cy="13" r="1.6"/><circle cx="20" cy="5" r="1.6"/><path d="M6.2 15.8 9 8.5M11.3 8.2l2.6 3.6M16.1 11.8l2.9-5.4"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     cruz: '<path d="M6 6l12 12M18 6 6 18"/>',
     alerta: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',

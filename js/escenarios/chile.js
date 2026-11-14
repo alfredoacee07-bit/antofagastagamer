@@ -33,7 +33,7 @@ DATOS.escenarios.push({
   orbitaInicial: "baja",
   orbitaRecomendada: "polar",
   instrumentosRecomendados: ["optica", "radar"],
-  eventos: ["tormenta", "antena", "basura", "arrastre", "cortocircuito", "rueda"],
+  eventos: ["tormenta", "antena", "basura", "arrastre", "estrellas", "cortocircuito", "rueda"],
   fuentes: ["dga_glaciares", "meteored_glaciares", "cr2_megasequia", "landsat9", "sentinel2", "iceye", "iss"],
   intro: { titulo: "Misión Glaciares", texto: "Los glaciares son como 'refrigeradores de agua' que alimentan los ríos en verano. Desde el espacio podemos medirlos todos, ¡incluso los que nadie puede visitar!" },
   preguntas: [

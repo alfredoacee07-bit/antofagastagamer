@@ -33,7 +33,8 @@ const Minijuegos = (function () {
     antena: { nombre: "Apuntar la antena", icono: "antena", controles: "Mueve la mira con las flechas, WASD, los botones o arrastrando con el dedo." },
     orbita: { nombre: "Corregir la órbita", icono: "orbita", controles: "Pulsa Espacio o IMPULSO cuando la nave pase por la zona verde." },
     reparacion: { nombre: "Reparar los cables", icono: "llave", controles: "Toca un sistema de la izquierda y luego su conexión de la derecha." },
-    aterrizaje: { nombre: "Aterrizar la primera etapa", icono: "cohete", controles: "Flecha arriba (o W): encender el motor. Izquierda/derecha (A/D): inclinarse." }
+    aterrizaje: { nombre: "Aterrizar la primera etapa", icono: "cohete", controles: "Flecha arriba (o W): encender el motor. Izquierda/derecha (A/D): inclinarse." },
+    estrellas: { nombre: "Orientarse por las estrellas", icono: "constelacion", controles: "Toca la estrella (o el punto) que se pide. Gira la vista con las flechas izquierda/derecha." }
   };
 
   /* =================================================================
@@ -69,6 +70,15 @@ const Minijuegos = (function () {
       out.cables = dif < 0.9 ? 3 : (dif > 1.2 ? 5 : 4);
       out.lineas.push(out.cables + " cables sueltos.");
       out.lineas.push(out.pista ? "Tu computador avanzado hace un diagnóstico: te mostrará una conexión." : "Tu computador básico no puede hacer diagnóstico: tendrás que pensar.");
+    }
+    if (tipo === "estrellas") {
+      const precision = p.orientacion ? p.orientacion.precision : 0.7;
+      out.mapaGira = precision >= 1;
+      out.rondas = dif < 0.9 ? 3 : (dif > 1.2 ? 5 : 4);
+      out.ruido = Math.round(30 * dif);
+      out.lineas.push(out.mapaGira ? "Control de orientación avanzado: el mapa de a bordo gira junto con la vista. ¡Más fácil comparar!" :
+        "Control de orientación básico: el mapa no gira. Tendrás que girar la vista con las flechas hasta que se parezcan.");
+      out.lineas.push(out.rondas + " búsquedas, con unas " + out.ruido + " estrellas débiles que confunden.");
     }
     if (tipo === "aterrizaje") {
       // El combustible de reserva depende de la etapa (en un cohete propio, de su tamaño)
@@ -665,9 +675,190 @@ const Minijuegos = (function () {
   }
 
   /* =================================================================
+     7. ORIENTARSE POR LAS ESTRELLAS (rastreador de estrellas)
+     Estrellas reales de js/datos/estrellas.js, proyectadas como las ve
+     una cámara (proyección "gnomónica", la de una foto).
+     ================================================================= */
+  function orientacionEstrellas(contenedor, r, inf, alTerminar) {
+    const c = armarPantalla(contenedor, "estrellas", true, true, false);
+    const ctx = c.ctx;
+    const RAD = Math.PI / 180, ESCALA = 520;              // píxeles por radián (unos 50° de cielo)
+    const VISTA = { x: 0, y: 0, ancho: 430, alto: ALTO }, CX = 215, CY = ALTO / 2 + 14;
+    const MAPA = { x: 440, ancho: ANCHO - 440 }, MCX = 440 + (ANCHO - 440) / 2, MCY = ALTO / 2 + 20;
+    const estrella = function (id) { return DATOS.estrellas.find(function (s) { return s.id === id; }); };
+
+    // Elegir las rondas: búsquedas de estrellas al azar y al final el Polo Sur
+    const deEstrella = mezclarLista(DATOS.rondasEstrellas.filter(function (x) { return x.tipo === "estrella"; }));
+    const polo = DATOS.rondasEstrellas.find(function (x) { return x.tipo === "polo"; });
+    const rondas = deEstrella.slice(0, inf.rondas - 1).concat([polo]);
+
+    // Proyección: (ar, dec) → (x, y) en la vista, con el cielo visto desde adentro (el este a la izquierda)
+    function proyectar(ar, dec, centro, giro, cx, cy, escala) {
+      const a = ar * 15 * RAD, d = dec * RAD, a0 = centro.ar * 15 * RAD, d0 = centro.dec * RAD;
+      const cosc = Math.sin(d0) * Math.sin(d) + Math.cos(d0) * Math.cos(d) * Math.cos(a - a0);
+      if (cosc < 0.55) return null;                            // fuera de la vista
+      const x = -Math.cos(d) * Math.sin(a - a0) / cosc;
+      const y = (Math.cos(d0) * Math.sin(d) - Math.sin(d0) * Math.cos(d) * Math.cos(a - a0)) / cosc;
+      const xr = x * Math.cos(giro) - y * Math.sin(giro), yr = x * Math.sin(giro) + y * Math.cos(giro);
+      return { x: cx + xr * escala, y: cy - yr * escala };
+    }
+    function centroDe(con) {
+      const lista = DATOS.estrellas.filter(function (s) { return s.con === con; });
+      return { ar: lista.reduce(function (t, s) { return t + s.ar; }, 0) / lista.length, dec: lista.reduce(function (t, s) { return t + s.dec; }, 0) / lista.length };
+    }
+
+    let ronda = null;
+    function prepararRonda(k) {
+      const def = rondas[k];
+      const base = def.tipo === "polo" ? { ar: estrella("acrux").ar, dec: -76 } : centroDe(def.con);
+      // La cámara no apunta justo al centro: un poco corrida y girada al azar
+      const centro = { ar: base.ar + (Math.random() - 0.5) * 0.5, dec: base.dec + (Math.random() - 0.5) * 8 };
+      const ruido = [];
+      // Estrellas débiles al azar (en el cielo, para que giren junto con la vista)
+      for (let i = 0; i < inf.ruido; i++) {
+        const dec = Math.max(-89, Math.min(89, centro.dec + (Math.random() - 0.5) * 50));
+        ruido.push({ ar: centro.ar + (Math.random() - 0.5) * 60 / 15 / Math.max(0.2, Math.cos(dec * RAD)), dec: dec, m: 3.6 + Math.random() * 1.6 });
+      }
+      ronda = { def: def, centro: centro, base: base, giro: Math.random() * Math.PI * 2, ruido: ruido, resuelta: 0, error: 0 };
+    }
+
+    juego = {
+      tiempo: 18 + 9 * rondas.length, tiempoTotal: 18 + 9 * rondas.length, k: 0, aciertos: 0, errores: 0,
+      actualizar: function (dt) {
+        if (teclas.izquierda) ronda.giro += dt * 1.3;
+        if (teclas.derecha) ronda.giro -= dt * 1.3;
+        if (ronda.error > 0) ronda.error -= dt;
+        if (ronda.resuelta > 0) {
+          ronda.resuelta -= dt;
+          if (ronda.resuelta <= 0) {
+            this.k++;
+            if (this.k >= rondas.length) { this.terminado = true; return; }
+            prepararRonda(this.k);
+          }
+        }
+        marcador(ic("constelacion") + " Búsqueda <b>" + Math.min(this.k + 1, rondas.length) + " de " + rondas.length + "</b> · Errores: <b>" + this.errores + "</b>");
+      },
+      dibujar: function () {
+        ctx.fillStyle = "#03050f"; ctx.fillRect(0, 0, ANCHO, ALTO);
+        // --- Vista de la cámara ---
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VISTA.ancho, ALTO); ctx.clip();
+        const g = ctx.createRadialGradient(CX, CY, 20, CX, CY, 300); g.addColorStop(0, "#0b1230"); g.addColorStop(1, "#03050f");
+        ctx.fillStyle = g; ctx.fillRect(0, 0, VISTA.ancho, ALTO);
+        ronda.ruido.forEach(function (s) {
+          const p = proyectar(s.ar, s.dec, ronda.centro, ronda.giro, CX, CY, ESCALA);
+          if (!p) return;
+          ctx.fillStyle = "rgba(220,225,255,0.55)"; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.6, 4.2 - s.m * 0.75), 0, Math.PI * 2); ctx.fill();
+        });
+        const resuelta = ronda.resuelta > 0;
+        if (resuelta) dibujarLineas(ronda.def.con, ronda.centro, ronda.giro, CX, CY, ESCALA, "rgba(76,201,240,0.8)");
+        DATOS.estrellas.forEach(function (s) {
+          const p = proyectar(s.ar, s.dec, ronda.centro, ronda.giro, CX, CY, ESCALA);
+          if (!p) return;
+          dibujarEstrella(p.x, p.y, s.mag, s.id === "antares" || s.id === "betelgeuse" ? "#ffb38a" : (s.id === "rigel" ? "#bcd4ff" : "#ffffff"));
+          if (resuelta && s.con === ronda.def.con) { ctx.fillStyle = "#9fe6ff"; ctx.font = "11px sans-serif"; ctx.fillText(s.nombre, p.x + 7, p.y - 5); }
+        });
+        if (resuelta && ronda.def.tipo === "polo") dibujarPolo(ronda.centro, ronda.giro, CX, CY, ESCALA, true);
+        if (ronda.error > 0) { ctx.strokeStyle = "rgba(255,92,122," + ronda.error + ")"; ctx.lineWidth = 6; ctx.strokeRect(3, 3, VISTA.ancho - 6, ALTO - 6); }
+        ctx.restore();
+        // Instrucción
+        ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, VISTA.ancho, 34);
+        ctx.fillStyle = resuelta ? "#3ddc84" : "#eef2ff"; ctx.font = "bold 13px sans-serif";
+        envolver(resuelta ? "¡Correcto! " + (ronda.def.tipo === "polo" ? "Ese es el Polo Sur celeste." : DATOS.constelaciones[ronda.def.con].nombre + " encontrada.") : ronda.def.texto, 8, 15, VISTA.ancho - 16, 14);
+        // --- Mapa de a bordo ---
+        ctx.save(); ctx.beginPath(); ctx.rect(MAPA.x, 0, MAPA.ancho, ALTO); ctx.clip();
+        ctx.fillStyle = "#0d1430"; ctx.fillRect(MAPA.x, 0, MAPA.ancho, ALTO);
+        ctx.strokeStyle = "rgba(120,150,255,0.35)"; ctx.strokeRect(MAPA.x + 0.5, 0.5, MAPA.ancho - 1, ALTO - 1);
+        ctx.fillStyle = "#ffd166"; ctx.font = "bold 12px sans-serif"; ctx.fillText("MAPA DE A BORDO", MAPA.x + 10, 18);
+        ctx.fillStyle = "#aab4dd"; ctx.font = "11px sans-serif";
+        ctx.fillText(DATOS.constelaciones[ronda.def.con].nombre + (inf.mapaGira ? " (gira con la vista)" : ""), MAPA.x + 10, 34);
+        const giroMapa = inf.mapaGira ? ronda.giro : 0, escalaMapa = ronda.def.tipo === "polo" ? 230 : 300;
+        const centroMapa = ronda.def.tipo === "polo" ? { ar: ronda.base.ar, dec: -75 } : ronda.base;
+        dibujarLineas(ronda.def.con, centroMapa, giroMapa, MCX, MCY, escalaMapa, "rgba(255,209,102,0.7)");
+        DATOS.estrellas.forEach(function (s) {
+          if (s.con !== ronda.def.con) return;
+          const p = proyectar(s.ar, s.dec, centroMapa, giroMapa, MCX, MCY, escalaMapa);
+          if (!p) return;
+          dibujarEstrella(p.x, p.y, s.mag, "#ffffff");
+          if (s.id === ronda.def.objetivo) { ctx.strokeStyle = "#3ddc84"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.stroke(); }
+        });
+        if (ronda.def.tipo === "polo") dibujarPolo(centroMapa, giroMapa, MCX, MCY, escalaMapa, true);
+        ctx.fillStyle = "#aab4dd"; ctx.font = "11px sans-serif";
+        envolver(DATOS.constelaciones[ronda.def.con].pista, MAPA.x + 10, ALTO - 42, MAPA.ancho - 20, 13);
+        ctx.restore();
+      },
+      puntaje: function () {
+        return this.aciertos / rondas.length * 0.85 + Math.max(0, this.tiempo) / this.tiempoTotal * 0.15 - this.errores * 0.07;
+      },
+      detalle: function () {
+        return "Encontraste " + this.aciertos + " de " + rondas.length + " objetivos con " + this.errores + " error(es).";
+      }
+    };
+
+    // Tocar el cielo
+    c.canvas.addEventListener("pointerdown", function (e) {
+      if (!juego || ronda.resuelta > 0) return;
+      const rect = c.canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width * ANCHO, y = (e.clientY - rect.top) / rect.height * ALTO;
+      if (x > VISTA.ancho) return;
+      let bien = false;
+      if (ronda.def.tipo === "polo") {
+        const p = proyectar(0, -89.999, ronda.centro, ronda.giro, CX, CY, ESCALA);
+        bien = p && Math.hypot(p.x - x, p.y - y) < 34 / Math.sqrt(inf.dif);
+      } else {
+        // la estrella más cercana al toque
+        let mejor = null;
+        DATOS.estrellas.forEach(function (s) {
+          const p = proyectar(s.ar, s.dec, ronda.centro, ronda.giro, CX, CY, ESCALA);
+          if (!p) return;
+          const d = Math.hypot(p.x - x, p.y - y);
+          if (d < 18 && (!mejor || d < mejor.d)) mejor = { s: s, d: d };
+        });
+        bien = !!mejor && mejor.s.id === ronda.def.objetivo;
+      }
+      if (bien) { juego.aciertos++; ronda.resuelta = 1.6; Sonido.efecto("exitoCorto"); }
+      else { juego.errores++; ronda.error = 1; Sonido.efecto("error"); }
+    });
+
+    function dibujarEstrella(x, y, mag, color) {
+      const radio = Math.max(1.2, 5 - mag * 1.1);
+      ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = radio * 2;
+      ctx.beginPath(); ctx.arc(x, y, radio, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    }
+    function dibujarLineas(con, centro, giro, cx, cy, escala, color) {
+      ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+      DATOS.constelaciones[con].lineas.forEach(function (par) {
+        const a = estrella(par[0]), b = estrella(par[1]);
+        const p = proyectar(a.ar, a.dec, centro, giro, cx, cy, escala), q = proyectar(b.ar, b.dec, centro, giro, cx, cy, escala);
+        if (p && q) { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+      });
+    }
+    // La guía de la Cruz: de Gacrux a Acrux, y 4,5 veces más hasta el polo
+    function dibujarPolo(centro, giro, cx, cy, escala, conGuia) {
+      const pPolo = proyectar(0, -89.999, centro, giro, cx, cy, escala);
+      const g = estrella("gacrux"), a = estrella("acrux");
+      const pg = proyectar(g.ar, g.dec, centro, giro, cx, cy, escala), pa = proyectar(a.ar, a.dec, centro, giro, cx, cy, escala);
+      if (conGuia && pg && pPolo) { ctx.setLineDash([4, 5]); ctx.strokeStyle = "rgba(61,220,132,0.8)"; ctx.beginPath(); ctx.moveTo(pg.x, pg.y); ctx.lineTo(pPolo.x, pPolo.y); ctx.stroke(); ctx.setLineDash([]); }
+      if (pPolo) { ctx.strokeStyle = "#3ddc84"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(pPolo.x - 7, pPolo.y); ctx.lineTo(pPolo.x + 7, pPolo.y); ctx.moveTo(pPolo.x, pPolo.y - 7); ctx.lineTo(pPolo.x, pPolo.y + 7); ctx.stroke(); }
+      return pa;
+    }
+    function envolver(texto, x, y, ancho, alto) {
+      const palabras = texto.split(" "); let linea = "", fila = 0;
+      palabras.forEach(function (p) {
+        const prueba = linea ? linea + " " + p : p;
+        if (ctx.measureText(prueba).width > ancho && linea) { ctx.fillText(linea, x, y + fila * alto); linea = p; fila++; } else linea = prueba;
+      });
+      if (linea) ctx.fillText(linea, x, y + fila * alto);
+    }
+    function mezclarLista(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = b[i]; b[i] = b[j]; b[j] = t; } return b; }
+
+    prepararRonda(0);
+    iniciarBucle(alTerminar);
+  }
+
+  /* =================================================================
      ENTRADA PRINCIPAL
      ================================================================= */
-  const JUEGOS = { asteroides: asteroides, tormenta: tormenta, antena: antena, orbita: orbita, reparacion: reparacion, aterrizaje: aterrizaje };
+  const JUEGOS = { asteroides: asteroides, tormenta: tormenta, antena: antena, orbita: orbita, reparacion: reparacion, aterrizaje: aterrizaje, estrellas: orientacionEstrellas };
 
   function jugar(tipo, contenedor, r, alTerminar) {
     if (juego) { cancelAnimationFrame(juego.raf); juego = null; }

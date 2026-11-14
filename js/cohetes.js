@@ -94,16 +94,25 @@ const Cohetes = (function () {
     };
   }
 
-  // Carga máxima (kg) que el cohete deja en un destino (búsqueda por mitades)
-  function cargaMaxima(diseno, destino) {
-    const necesario = DATOS.deltaVDestino[destino];
+  // Carga máxima (kg) que el cohete deja en un destino (búsqueda por mitades).
+  // extra: km/s adicionales que pide la fecha de lanzamiento (planificador de viaje)
+  const memoCarga = {};
+  function cargaMaxima(diseno, destino, extra) {
+    const necesario = DATOS.deltaVDestino[destino] + (extra || 0);
+    const clave = JSON.stringify(diseno) + "|" + leerFlotaTexto() + "|" + necesario.toFixed(3);
+    if (memoCarga[clave] !== undefined) return memoCarga[clave];
     const sirve = function (c) { const a = analizar(diseno, c); return a.despega && a.deltaV >= necesario; };
-    if (!sirve(0)) return 0;
-    let bajo = 0, alto = 1000;
-    while (sirve(alto) && alto < 300000) { bajo = alto; alto *= 2; }
-    for (let i = 0; i < 30; i++) { const medio = (bajo + alto) / 2; if (sirve(medio)) bajo = medio; else alto = medio; }
-    return Math.floor(bajo / 10) * 10;
+    let res = 0;
+    if (sirve(0)) {
+      let bajo = 0, alto = 1000;
+      while (sirve(alto) && alto < 300000) { bajo = alto; alto *= 2; }
+      for (let i = 0; i < 30; i++) { const medio = (bajo + alto) / 2; if (sirve(medio)) bajo = medio; else alto = medio; }
+      res = Math.floor(bajo / 10) * 10;
+    }
+    memoCarga[clave] = res;
+    return res;
   }
+  function leerFlotaTexto() { try { return localStorage.getItem(CLAVE_FLOTA) || ""; } catch (e) { return ""; } }
 
   // Copia limpia de un diseño (para editarlo sin tocar el original)
   function copiar(diseno) {

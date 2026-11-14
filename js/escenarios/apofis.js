@@ -25,7 +25,7 @@ DATOS.escenarios.push({
   orbitaInicial: "distante",
   orbitaRecomendada: "cercana",
   instrumentosRecomendados: ["camara", "cubesat"],
-  eventos: ["tormenta", "antena", "giroApofis", "particulas", "cortocircuito", "rueda"],
+  eventos: ["tormenta", "antena", "giroApofis", "particulas", "estrellas", "cortocircuito", "rueda"],
   fuentes: ["apophis_esa", "apophis_nasa", "osiris_apex", "hera", "dsn"],
   intro: { titulo: "Misión Defensa Planetaria", texto: "Un asteroide tiene tan poca gravedad que tu nave no 'orbita' como en la Tierra: ¡casi flota a su lado! Y debes llegar ANTES del 13 de abril de 2029." },
   preguntas: [

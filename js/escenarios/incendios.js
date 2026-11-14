@@ -24,7 +24,7 @@ DATOS.escenarios.push({
   orbitaInicial: "polar",
   orbitaRecomendada: "geo",
   instrumentosRecomendados: ["imagenes", "fuego"],
-  eventos: ["tormenta", "antena", "erupcion", "incendio", "basura", "arrastre", "cortocircuito", "rueda"],
+  eventos: ["tormenta", "antena", "erupcion", "incendio", "basura", "arrastre", "estrellas", "cortocircuito", "rueda"],
   fuentes: ["goesr", "goes_chile_fires", "nasa_chile_rayos", "sernageomin"],
   intro: { titulo: "Misión Centinela", texto: "Para ver un incendio cuando recién empieza, no basta con una foto al día: ¡hay que mirar todo el tiempo! Piensa qué órbita lo permite." },
   preguntas: [

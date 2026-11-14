@@ -27,7 +27,7 @@ DATOS.escenarios.push({
   orbitaInicial: "eliptica",
   orbitaRecomendada: "baja",
   instrumentosRecomendados: ["radar", "clima"],
-  eventos: ["tormenta", "antena", "polvoMarte", "conjuncion", "cortocircuito", "rueda"],
+  eventos: ["tormenta", "antena", "polvoMarte", "conjuncion", "estrellas", "cortocircuito", "rueda"],
   fuentes: ["mars_facts", "mro", "maven", "mom", "conjuncion", "opportunity", "dsn"],
   intro: { titulo: "Misión Planeta Rojo", texto: "Marte está tan lejos que tu señal tarda hasta 22 minutos en llegar. ¡No puedes manejar la nave en vivo! Y como hay menos luz, la energía será un desafío." },
   preguntas: [

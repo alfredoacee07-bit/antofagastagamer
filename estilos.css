@@ -776,3 +776,36 @@ body.calidad-baja .panel-recursos, body.calidad-baja .btn-menu { backdrop-filter
 .cc-informe { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
 .cc-informe-etapa { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--tarjeta-borde); border-radius: 12px; padding: 10px; }
 .cc-informe-etapa small { color: var(--texto-suave); }
+/* ---------- Planificador del viaje (etapa C) ---------- */
+.planificador .cc-fila > span:first-child { min-width: 110px; }
+.etiqueta-linea { margin: 14px 0 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-weight: bold; }
+.etiqueta-linea small { font-weight: normal; color: var(--texto-suave); }
+.linea-meses { display: flex; flex-direction: column; gap: 6px; }
+.fila-anio { display: grid; grid-template-columns: 48px 1fr; gap: 8px; align-items: center; }
+.fila-anio > b { color: var(--texto-suave); font-size: 14px; }
+.meses { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+@media (max-width: 640px) { .meses { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.mes { font: inherit; font-size: 12px; min-height: 34px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; color: #0b1028; font-weight: bold; position: relative; }
+.mes-buena { background: var(--verde); }
+.mes-media { background: var(--amarillo); }
+.mes-mala { background: #ff9a6b; }
+.mes-imposible { background: #3a4066; color: #8b93b8; }
+.mes.activa { border-color: #fff; box-shadow: 0 0 0 3px var(--acento); }
+.mes.mejor::after { content: "★"; position: absolute; top: -9px; right: -4px; color: var(--acento); font-size: 14px; text-shadow: 0 0 3px #000; }
+.mes.evento::before { content: ""; position: absolute; left: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #c77dff; box-shadow: 0 0 6px #c77dff; }
+.leyenda-meses { font-size: 13px; color: var(--texto-suave); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.leyenda-meses .mes { display: inline-block; width: 22px; min-height: 16px; height: 16px; cursor: default; border: 0; background-clip: padding-box; }
+.leyenda-meses .mes.mejor, .leyenda-meses .mes.evento { background: transparent; }
+.plan-cuerpo { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; margin-top: 12px; align-items: start; }
+@media (max-width: 640px) { .plan-cuerpo { grid-template-columns: 1fr; } }
+.dibujo-viaje { width: 100%; max-width: 240px; background: radial-gradient(circle, #0e1640, #050818); border-radius: 14px; border: 1px solid var(--tarjeta-borde); }
+.dibujo-viaje text { fill: var(--texto); font-size: 10px; }
+.dibujo-viaje .orb-tierra { fill: none; stroke: #4cc9f0; stroke-opacity: 0.5; }
+.dibujo-viaje .orb-obj { fill: none; stroke: #ff7b5c; stroke-opacity: 0.5; stroke-dasharray: 3 3; }
+.dibujo-viaje .orb-vuelta { fill: none; stroke: #ffd166; stroke-opacity: 0.7; stroke-dasharray: 2 4; }
+.dibujo-viaje .camino { fill: none; stroke: #ffd166; stroke-width: 2; }
+.dibujo-viaje .sol { fill: #ffb703; filter: drop-shadow(0 0 6px #ffb703); }
+.dibujo-viaje .p-tierra { fill: #4cc9f0; }
+.dibujo-viaje .p-obj { fill: #ff7b5c; }
+.dibujo-viaje .p-obj-antes { fill: none; stroke: #ff7b5c; stroke-width: 1.5; }
+.plan-resumen p { margin: 6px 0; }
