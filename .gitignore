@@ -1,0 +1,4 @@
+# Configuración local de pruebas (no es parte del juego)
+.claude/
+Thumbs.db
+desktop.ini

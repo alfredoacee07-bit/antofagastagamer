@@ -1,0 +1,21 @@
+MÚSICA DE SPACE SIMULATOR
+=========================
+
+Hoy el juego CREA su música con código (js/audio.js), así que esta carpeta
+puede estar vacía y todo funciona igual.
+
+Si quieres usar música grabada (por ejemplo de Pixabay Music, que permite
+uso gratuito), guarda archivos MP3 aquí con EXACTAMENTE estos nombres:
+
+  inicio.mp3        -> menú de inicio
+  diseno.mp3        -> fases 1 a 4 (diseño de la misión)
+  lanzamiento.mp3   -> cuenta regresiva y despegue
+  simulacion.mp3    -> la nave en órbita
+  victoria.mp3      -> misión exitosa
+  derrota.mp3       -> misión fallida
+
+El juego usa el MP3 si existe; si no, usa la música creada por código.
+Consejos:
+  - Usa pistas que se puedan repetir en bucle, de 1 a 3 minutos.
+  - Comprímelas a 128 kbps para que pesen poco (2 a 4 MB cada una).
+  - Anota en CREDITOS.md el título, autor, enlace y licencia de cada pista.

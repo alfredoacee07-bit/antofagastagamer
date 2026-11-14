@@ -1,0 +1,13 @@
+EFECTOS DE SONIDO DE SPACE SIMULATOR
+====================================
+
+Todos los efectos se crean con la Web Audio API en js/audio.js
+(sección "EFECTOS DE SONIDO"). No usan archivos ni tienen derechos de terceros.
+
+Efectos disponibles: clic, seleccionar, error, cuenta (cuenta regresiva),
+despegue (rugido del motor), separacion (separación de etapas), alarma,
+impacto (asteroide o basura), pitido (comunicación), exito, falla,
+exitoCorto y fallaCorta.
+
+Para cambiar cómo suena uno, edita su función en js/audio.js.
+Esta carpeta queda reservada por si en el futuro se agregan sonidos grabados.

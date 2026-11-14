@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guía docente SPACE SIMULATOR</title>
+  <!-- Guía imprimible para profesoras y profesores. Los escenarios y las fuentes
+       se leen directamente de los archivos de datos del juego, así siempre coinciden. -->
+  <style>
+    :root { --tinta: #1c2140; --suave: #555d7a; --acento: #c45a00; --borde: #d8dcea; --fondo: #f7f8fc; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif; color: var(--tinta); background: var(--fondo); line-height: 1.55; font-size: 16px; }
+    main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; background: #fff; }
+    h1 { color: var(--acento); margin: 0 0 4px; font-size: 32px; }
+    h2 { border-bottom: 3px solid var(--acento); padding-bottom: 4px; margin-top: 34px; }
+    h3 { margin-bottom: 4px; }
+    .sub { color: var(--suave); margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid var(--borde); padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #eef0f8; }
+    .caja { border: 2px solid var(--borde); border-radius: 12px; padding: 12px 16px; margin: 12px 0; background: #fbfbfe; }
+    .acciones { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 0; }
+    .acciones a, .acciones button { font: inherit; font-weight: bold; padding: 10px 18px; border-radius: 10px; border: 2px solid var(--acento); background: #fff; color: var(--acento); cursor: pointer; text-decoration: none; }
+    .fuentes li { margin-bottom: 6px; font-size: 14px; }
+    .fuentes small { color: var(--suave); }
+    a { color: #1b5fb8; }
+    @media print {
+      body { background: #fff; font-size: 12pt; }
+      main { padding: 0; }
+      .acciones { display: none; }
+      h2 { break-after: avoid; }
+      table, .caja { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>SPACE SIMULATOR — Guía para docentes</h1>
+  <p class="sub">Juego educativo para diseñar, gestionar y simular misiones espaciales. No es un producto oficial de la NASA. Pensado para estudiantes de 10 a 17 años, sin conocimientos previos.</p>
+  <div class="acciones">
+    <a href="index.html">Abrir el juego</a>
+    <button onclick="window.print()">Imprimir esta guía</button>
+  </div>
+
+  <h2>1. ¿De qué se trata?</h2>
+  <p>Cada estudiante (o equipo) recibe un encargo real: vigilar glaciares, detectar incendios, buscar hielo en la Luna, estudiar Marte o acompañar al asteroide Apofis. Debe diseñar una nave, elegir instrumentos, órbita y cohete, y luego ver la misión funcionar. La idea central es que <b>cada decisión de ingeniería afecta a todas las demás</b>: más instrumentos significan más masa, más energía, más datos y más costo.</p>
+
+  <h2>2. Objetivos de aprendizaje</h2>
+  <ul>
+    <li>Comprender que un sistema complejo tiene <b>restricciones que compiten</b> (masa, energía, dinero, datos, tiempo).</li>
+    <li>Relacionar la distancia con la energía solar disponible y con la intensidad de una señal (ley del inverso del cuadrado).</li>
+    <li>Conocer los distintos tipos de órbita y por qué cada misión necesita una distinta.</li>
+    <li>Usar la ecuación del cohete para entender por qué el combustible crece tan rápido.</li>
+    <li>Tomar decisiones bajo incertidumbre y argumentar con evidencia.</li>
+    <li>Valorar el uso de datos satelitales para problemas reales de Chile (agua, incendios, volcanes).</li>
+  </ul>
+
+  <h2>3. Conexión con el currículo</h2>
+  <p>El juego puede apoyar contenidos de Ciencias Naturales (energía, fuerza y movimiento, la Tierra y el Universo), Física (ondas, gravitación, energía), Matemática (porcentajes, proporciones y, en cursos superiores, funciones exponenciales con la ecuación del cohete), Tecnología (diseño de soluciones con restricciones) y Geografía (glaciares, sequía, riesgos naturales). Recomendamos revisar los objetivos específicos de su nivel en <a href="https://www.curriculumnacional.cl/" target="_blank" rel="noopener">curriculumnacional.cl</a>.</p>
+
+  <h2>4. Las cinco misiones</h2>
+  <table id="tabla-escenarios">
+    <thead><tr><th>Misión</th><th>Destino</th><th>Presupuesto base</th><th>Días midiendo</th><th>Órbita que mejor funciona</th><th>Gran idea</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p><small>Sugerencia: comience con la misión de los glaciares (la más sencilla) y avance hacia Marte o Apofis, donde aparecen la propulsión, el viaje y la distancia.</small></p>
+
+  <h2>5. Plan de clase sugerido (90 minutos)</h2>
+  <table>
+    <tr><th>Tiempo</th><th>Actividad</th></tr>
+    <tr><td>10 min</td><td><b>Pregunta inicial:</b> “¿Qué necesita un satélite para funcionar?” Anotar ideas en la pizarra.</td></tr>
+    <tr><td>10 min</td><td>Formar equipos de 2 a 4 personas y asignar roles en la pantalla de inicio (Directora de misión, Ingeniera de la nave, Científica, Comunicaciones). Explicar que cada rol tiene una meta propia.</td></tr>
+    <tr><td>30 min</td><td><b>Primera misión</b> en dificultad Cadete. Dejar que fallen: el informe explica por qué.</td></tr>
+    <tr><td>15 min</td><td><b>Segunda misión:</b> “Mejorar mi diseño” usando las sugerencias del informe. Comparar puntajes.</td></tr>
+    <tr><td>15 min</td><td><b>Puesta en común:</b> cada equipo explica una decisión que cambió todo. Usar las preguntas de reflexión.</td></tr>
+    <tr><td>10 min</td><td><b>Cierre:</b> ¿Qué tiene que ver esto con problemas reales de Chile?</td></tr>
+  </table>
+
+  <h2>6. Conceptos clave (para explicar en la pizarra)</h2>
+  <div class="caja"><b>Órbita baja vs. polar vs. geoestacionaria.</b> Más cerca = más detalle pero menos área y más roce con el aire. La órbita polar heliosíncrona pasa por todo el planeta siempre a la misma hora. La geoestacionaria (35.786 km) mira siempre la misma región: ideal para fenómenos rápidos como incendios.</div>
+  <div class="caja"><b>Energía solar e inverso del cuadrado.</b> En Marte (1,52 veces más lejos del Sol que la Tierra) llega 1 ÷ 1,52² ≈ 43% de la luz. Lo mismo pasa con las señales de radio: al doble de distancia, la señal es 4 veces más débil.</div>
+  <div class="caja"><b>Ecuación del cohete (Tsiolkovsky).</b> Combustible = masa de la nave × (e<sup>Δv ÷ (Isp × 9,81)</sup> − 1). Un motor de hidracina (Isp ≈ 220 s) necesita mucho más combustible que uno eléctrico (Isp ≈ 1.500 s), pero el eléctrico empuja tan suave que el viaje tarda más.</div>
+  <div class="caja"><b>Cuello de botella de los datos.</b> Una nave solo es útil si sus datos llegan a la Tierra. Datos generados &gt; datos enviados = ciencia perdida.</div>
+
+  <h2>7. Preguntas de reflexión y respuestas orientadoras</h2>
+  <ol>
+    <li><b>¿Por qué los satélites ambientales usan órbitas polares?</b> Porque pasan sobre todo el planeta y siempre a la misma hora local, lo que permite comparar imágenes en el tiempo (como Landsat).</li>
+    <li><b>¿Por qué en Marte los instrumentos producen menos datos?</b> Porque la señal llega muy debilitada por la distancia: la nave solo puede enviar unos pocos GB al día.</li>
+    <li><b>¿Por qué el combustible crece tan rápido?</b> Porque hay que llevar combustible para mover… el combustible. La ecuación es exponencial.</li>
+    <li><b>¿Seguridad o riesgo?</b> No hay una sola respuesta: se espera que argumenten considerando costo, probabilidad y consecuencia.</li>
+    <li><b>¿Para qué sirven estos datos en Chile?</b> Gestión del agua (DGA), combate de incendios (CONAF), alertas volcánicas (SERNAGEOMIN), agricultura, planificación urbana.</li>
+  </ol>
+
+  <h2>8. Rúbrica rápida (opcional)</h2>
+  <table>
+    <tr><th>Criterio</th><th>Inicial</th><th>Logrado</th><th>Destacado</th></tr>
+    <tr><td>Explica una relación entre dos recursos</td><td>Nombra un recurso</td><td>Relaciona dos (ej.: más instrumentos → más energía)</td><td>Explica una cadena de 3 o más efectos</td></tr>
+    <tr><td>Usa el informe para mejorar</td><td>Repite el mismo diseño</td><td>Cambia algo sugerido</td><td>Justifica el cambio con números del informe</td></tr>
+    <tr><td>Trabajo en equipo</td><td>Decide una sola persona</td><td>Cada rol participa</td><td>Negocian metas en conflicto</td></tr>
+  </table>
+
+  <h2>9. Sobre los datos</h2>
+  <p>Los valores del juego son <b>simplificados y redondeados</b> para que sean fáciles de usar, pero se basan en misiones y cohetes reales. Las capacidades de los cohetes hacia la Luna, Marte y asteroides son aproximaciones. Si un enlace dejó de funcionar, busque el título en el sitio de la organización.</p>
+  <div id="fuentes"></div>
+</main>
+
+<!-- Los datos del juego (para que la guía siempre coincida con el juego) -->
+<script src="js/datos.js"></script>
+<script src="js/escenarios/chile.js"></script>
+<script src="js/escenarios/incendios.js"></script>
+<script src="js/escenarios/luna.js"></script>
+<script src="js/escenarios/marte.js"></script>
+<script src="js/escenarios/apofis.js"></script>
+<script>
+  // Llena la tabla de escenarios y la lista de fuentes desde los datos del juego
+  (function () {
+    const ideas = {
+      chile: "Equilibrio entre ciencia, datos y comunicaciones.",
+      incendios: "La mejor órbita depende de qué tan rápido cambia lo que observas.",
+      luna: "Hay que frenar para quedarse: aparece la propulsión.",
+      marte: "Menos luz y señal muy débil: hay que elegir pocos datos de mucho valor.",
+      apofis: "Llegar a tiempo y moverse junto a un objeto con casi nada de gravedad."
+    };
+    const cuerpo = document.querySelector("#tabla-escenarios tbody");
+    DATOS.escenarios.forEach(function (e) {
+      const mejor = e.orbitas.find(function (o) { return o.id === e.orbitaRecomendada; });
+      const tr = document.createElement("tr");
+      [e.nombre, e.destino, e.presupuesto + " M USD", e.duracionDias.toLocaleString("es-CL"), mejor.nombre, ideas[e.id] || ""].forEach(function (t) {
+        const td = document.createElement("td"); td.textContent = t; tr.appendChild(td);
+      });
+      cuerpo.appendChild(tr);
+    });
+    const caja = document.getElementById("fuentes");
+    const h = document.createElement("h3"); h.textContent = "Fuentes utilizadas"; caja.appendChild(h);
+    const ul = document.createElement("ul"); ul.className = "fuentes";
+    Object.keys(DATOS.fuentes).forEach(function (id) {
+      const f = DATOS.fuentes[id];
+      const li = document.createElement("li");
+      const a = document.createElement("a"); a.href = f.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = f.titulo;
+      li.appendChild(a);
+      li.appendChild(document.createTextNode(" — " + f.org + ". "));
+      const s = document.createElement("small"); s.textContent = "Dato usado: " + f.usado; li.appendChild(s);
+      const url = document.createElement("small"); url.textContent = " (" + f.url + ")"; li.appendChild(url);
+      ul.appendChild(li);
+    });
+    caja.appendChild(ul);
+  })();
+</script>
+</body>
+</html>
