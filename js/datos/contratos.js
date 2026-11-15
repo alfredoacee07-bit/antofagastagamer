@@ -20,6 +20,8 @@
    ===================================================================== */
 
 DATOS.modos = [
+  { id: "historia", nombre: "Modo historia", icono: "libro", duracion: "5 capítulos", disponible: true,
+    descripcion: "Eres el/la protagonista: desde tu primer satélite hasta sobrevivir en Marte. Cada capítulo tiene una meta, un presupuesto y un reloj." },
   { id: "completa", nombre: "Misión completa", icono: "play", duracion: "30 a 45 min", disponible: true,
     descripcion: "Elige uno de los cinco encargos y diseña tu misión con calma, paso a paso." },
   { id: "rapida", nombre: "Misión rápida", icono: "reloj", duracion: "10 a 15 min", disponible: true,
@@ -28,6 +30,8 @@ DATOS.modos = [
     descripcion: "Sin límite de presupuesto ni de tiempo. Experimenta con cualquier diseño, sin ranking." },
   { id: "equipo", nombre: "Modo equipo", icono: "grupo", duracion: "30 a 45 min", disponible: true,
     descripcion: "De 2 a 4 personas, cada una con un rol y una meta propia." },
+  { id: "marte", nombre: "Varado en Marte", icono: "casco", duracion: "15 a 30 min", disponible: true,
+    descripcion: "Quedaste solo/a en una base de Marte. Camina por el cráter y consigue oxígeno, agua, comida y energía hasta que llegue el rescate." },
   { id: "campana", nombre: "Campaña de contratos", icono: "documento", disponible: false,
     descripcion: "Administra un presupuesto a lo largo de varios contratos y desbloquea tecnologías." },
   { id: "carrera", nombre: "Carrera espacial", icono: "bandera", disponible: false,

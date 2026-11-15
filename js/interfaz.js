@@ -64,7 +64,8 @@
     { nombre: "Marte", ids: ["mars_facts", "mro", "maven", "conjuncion", "opportunity"] },
     { nombre: "Asteroide Apofis", ids: ["apophis_esa", "apophis_nasa", "osiris_apex", "hera"] },
     { nombre: "Planificación del viaje", ids: ["horizons", "mars2020", "osirisrex"] },
-    { nombre: "Cielo y orientación", ids: ["estrellas", "constelaciones"] }
+    { nombre: "Cielo y orientación", ids: ["estrellas", "constelaciones"] },
+    { nombre: "Varado en Marte", ids: ["moxie", "rad_curiosity", "insight", "eclss", "atardecer_marte"] }
   ];
 
   const fmt = Motor.fmt;
@@ -146,6 +147,7 @@
      ================================================================= */
   function musicaDeFase() {
     if (estado.fase === 0) return "inicio";
+    if (estado.fase === -2) return "simulacion";
     if (estado.fase <= 4) return "diseno";
     if (estado.resultado) return estado.resultado.informe.estrellas >= 2 ? "victoria" : "derrota";
     return enVuelo ? "simulacion" : "lanzamiento";   // antes y durante el despegue suena "lanzamiento"
@@ -312,8 +314,8 @@
   }
 
   function actualizarPanel() {
-    $("#panel-recursos").classList.toggle("oculto", estado.fase === 0);
-    if (estado.fase === 0) return null;
+    $("#panel-recursos").classList.toggle("oculto", estado.fase === 0 || estado.fase === -2);
+    if (estado.fase === 0 || estado.fase === -2) return null;
     const r = Motor.calcularRecursos(estado);
     let hayRojo = false;
     RECURSOS.forEach(function (rec) {
@@ -333,6 +335,7 @@
      ================================================================= */
   function dibujarPasos() {
     document.body.classList.toggle("en-inicio", estado.fase === 0);
+    document.body.classList.toggle("en-marte", estado.fase === -2);
     // Botón del centro de control (aparece una vez que empezó la misión)
     const centro = (estado.faseMax >= 1 || estado.fase === -1) ?
       '<button class="paso paso-centro' + (estado.fase === -1 ? " actual" : "") + '" data-accion="irHangar">' +
@@ -373,6 +376,13 @@
   }
 
   function actualizarNavegacion() {
+    if (estado.fase === -2) {               // Varado en Marte: solo "Salir al menú"
+      $(".navegacion").classList.remove("oculto");
+      $("#btn-anterior").style.visibility = "visible"; $("#btn-anterior").innerHTML = ic("flechaIzq") + " Salir al menú";
+      $("#btn-siguiente").style.visibility = "hidden"; $("#aviso-nav").textContent = "";
+      return;
+    }
+    $("#btn-anterior").textContent = "Anterior";
     if (estado.fase === -1) {               // centro de control
       $(".navegacion").classList.remove("oculto");
       $("#btn-anterior").style.visibility = "visible";
@@ -442,7 +452,7 @@
   // Tarjetas de contratos (Misión rápida)
   function tarjetasContratos() {
     const dif = Motor.dificultad(estado);
-    return '<h3 class="subtitulo">Elige un contrato</h3><div class="grid-tarjetas">' + DATOS.contratos.map(function (c) {
+    return '<h3 class="subtitulo">Elige un contrato</h3><div class="grid-tarjetas">' + DATOS.contratos.filter(function (c) { return !c.historia; }).map(function (c) {
       const esc = DATOS.escenarios.find(function (e) { return e.id === c.escenario; });
       const sel = estado.contrato === c.id;
       return '<div class="tarjeta elegible con-foto contrato' + (sel ? " seleccionada" : "") + '" role="button" tabindex="0" data-accion="elegirContrato" data-id="' + c.id + '">' +
@@ -474,6 +484,122 @@
       '</div>';
   }
 
+  /* ---------- MODO HISTORIA (datos/historia.js) ---------- */
+  const CLAVE_HISTORIA = "spaceSimulator.historia";
+  function leerHistoria() { const h = leerJSON(CLAVE_HISTORIA, null); return h && h.estrellas ? h : { nombre: "", estrellas: {} }; }
+  function guardarHistoria(h) { try { localStorage.setItem(CLAVE_HISTORIA, JSON.stringify(h)); } catch (e) { /* modo privado */ } }
+  function capitulo(n) { return DATOS.historia.capitulos.find(function (c) { return c.n === n; }); }
+  function desbloqueado(n, h) { return n === 1 || (h.estrellas[n - 1] || 0) >= 2; }
+  function textoHistoria(t) { return String(t).replace(/\{nombre\}/g, seguro(estado.nombreHistoria || leerHistoria().nombre || "astronauta")); }
+
+  function pantallaHistoria() {
+    const h = leerHistoria();
+    if (!estado.nombreHistoria && h.nombre) estado.nombreHistoria = h.nombre;
+    const total = Object.keys(h.estrellas).reduce(function (t, k) { return t + h.estrellas[k]; }, 0);
+    let html = '<div class="tarjeta historia-cabeza"><div><h3>' + ic("libro") + ' ' + DATOS.historia.titulo + '</h3><p>' + textoHistoria(DATOS.historia.resumen) + '</p>' +
+      '<label class="etiqueta-campo" for="nombre-historia">Tu nombre de astronauta</label>' +
+      '<input id="nombre-historia" class="input-nombre" maxlength="10" placeholder="Ej.: Sofía" value="' + seguro(estado.nombreHistoria || "") + '"></div>' +
+      '<div class="historia-estrellas"><b>' + total + ' / ' + DATOS.historia.capitulos.length * 3 + '</b>' + ic("estrella") + '<small>estrellas</small></div></div>';
+    html += '<h3 class="subtitulo">Capítulos</h3><div class="capitulos">';
+    DATOS.historia.capitulos.forEach(function (cap) {
+      const abierto = desbloqueado(cap.n, h), est = h.estrellas[cap.n] || 0;
+      const c = cap.contrato ? Modos.contrato(cap.contrato) : null;
+      const esc = c ? DATOS.escenarios.find(function (e) { return e.id === c.escenario; }) : null;
+      const metas = c ? stat("moneda", c.presupuesto + " M USD", null) + stat("reloj", c.minutos + " min para lanzar", null) + stat("objetivo", c.objetivos.length + 1 + " objetivos", null)
+        : stat("sol", "Sobrevivir " + (DATOS.supervivencia.solesRescate[cap.dificultad] || 30) + " soles", null) + stat("casco", "Camina por Marte en 3D", null);
+      html += '<div class="tarjeta capitulo' + (abierto ? "" : " bloqueada") + '">' +
+        '<div class="capitulo-num">' + ic(abierto ? cap.icono : "candado") + '<b>' + cap.n + '</b></div>' +
+        '<div class="capitulo-texto"><h3>' + cap.titulo + '</h3><small class="inspirado">' + (esc ? esc.destino : "Cráter Jezero, Marte") + '</small>' +
+        '<ul class="stats en-fila">' + metas + '</ul>' + (est ? '<div>' + estrellasHtml(est) + '</div>' : '') + '</div>' +
+        (abierto ? '<button class="btn btn-principal" data-accion="jugarCapitulo" data-n="' + cap.n + '">' + ic("play") + (est ? ' Jugar de nuevo' : ' Jugar') + '</button>'
+          : '<span class="etiqueta-chip">' + ic("candado") + ' Completa el capítulo ' + (cap.n - 1) + '</span>') + '</div>';
+    });
+    html += '</div>' + ((h.estrellas[5] || 0) >= 2 ? '<div class="centro"><button class="btn btn-secundario" data-accion="historiaEpilogo">' + ic("trofeo") + ' Ver el epílogo</button></div>' : '') +
+      '<p class="centro"><small>El progreso se guarda en este navegador. <button class="btn btn-mini" data-accion="historiaBorrar">Empezar la historia de cero</button></small></p>';
+    return html;
+  }
+
+  function leerNombreHistoria() {
+    const campo = $("#nombre-historia");
+    if (campo) estado.nombreHistoria = campo.value.trim();
+    const h = leerHistoria(); h.nombre = estado.nombreHistoria || h.nombre; guardarHistoria(h);
+  }
+
+  // Ventana con la historia del capítulo antes de empezar
+  function introCapitulo(n) {
+    leerNombreHistoria();
+    const cap = capitulo(n), c = cap.contrato ? Modos.contrato(cap.contrato) : null;
+    const metas = c ? '<ul class="objetivos grandes">' + c.objetivos.map(function (o) { return '<li>' + ic("objetivo") + ' ' + Modos.textoObjetivo(c, o) + '</li>'; }).join("") +
+        '<li>' + ic("reloj") + ' Tienes <b>' + c.minutos + ' minutos</b> para lanzar y <b>' + c.presupuesto + ' millones de dólares</b></li></ul>'
+      : '<ul class="objetivos grandes"><li>' + ic("sol") + ' Sobrevive <b>' + (DATOS.supervivencia.solesRescate[cap.dificultad] || 30) + ' soles</b> hasta que llegue la nave de rescate</li>' +
+        '<li>' + ic("cohete") + ' Llega a la zona de aterrizaje el día del rescate</li></ul>';
+    abrirModal('<div class="evento"><p class="etiqueta">' + DATOS.historia.titulo + ' · Capítulo ' + n + '</p><h2>' + cap.titulo + '</h2>' +
+      '<p class="historia-texto">' + textoHistoria(cap.intro) + '</p>' +
+      '<div class="paz-dice"><div class="mini-avatar">' + avatarPaz() + '</div><p><b>Ingeniera Paz:</b> ' + textoHistoria(cap.leccion) + '</p></div>' +
+      '<h3>' + ic("objetivo") + ' Tu misión</h3>' + metas +
+      '<div class="centro"><button class="btn btn-principal btn-gigante" data-accion="empezarCapitulo" data-n="' + n + '">' + ic("play") + ' ¡Empezar!</button> <button class="btn btn-secundario" data-accion="cerrarModal">Volver</button></div></div>', true);
+    Voz.decir(cap.titulo + ". " + textoHistoria(cap.intro));
+  }
+
+  function empezarCapitulo(n) {
+    const cap = capitulo(n);
+    cerrarModal();
+    estado.historia = { capitulo: n };
+    if (cap.tipo === "marte") {
+      estado.nombreMarte = estado.nombreHistoria || "";
+      estado.dificultad = cap.dificultad || estado.dificultad;
+      estado.modoJuego = "marte";
+      estado.vistaInicio = "marte";
+      irMarte(true);
+      return;
+    }
+    estado.vistaInicio = "rapida";
+    estado.contrato = cap.contrato;
+    estado.escenario = null; estado.instrumentos = []; estado.orbita = null; estado.cohete = null; estado.trayectoria = null; estado.resultado = null; estado.faseMax = 0;
+    DATOS.componentes.forEach(function (c) { estado.componentes[c.id] = null; });
+    comenzar();
+  }
+
+  // Al terminar un capítulo: ¿pasó? (todos los objetivos menos uno) y estrellas (todos = 3)
+  function resultadoCapitulo(n, cumplidos, total, completo) {
+    const pasa = cumplidos >= total - 1, est = completo ? 3 : (pasa ? 2 : 0);
+    const h = leerHistoria();
+    h.estrellas[n] = Math.max(h.estrellas[n] || 0, est);
+    if (estado.nombreHistoria) h.nombre = estado.nombreHistoria;
+    guardarHistoria(h);
+    return { pasa: pasa, estrellas: est };
+  }
+
+  function tarjetaCapitulo(rc) {
+    const n = estado.historia.capitulo, cap = capitulo(n), hay = capitulo(n + 1);
+    return '<div class="tarjeta capitulo-fin ' + (rc.pasa ? "completo" : "") + '"><h3>' + ic("libro") + ' Capítulo ' + n + ': ' + cap.titulo + ' · ' + (rc.pasa ? "¡superado!" : "no superado") + '</h3>' +
+      (rc.pasa ? '<div>' + estrellasHtml(rc.estrellas) + '</div><p class="historia-texto">' + textoHistoria(cap.final) + '</p>' : '<p>Para pasar el capítulo cumple todos los objetivos menos uno, como máximo. Lee el informe: ahí está la pista de qué cambiar.</p>') +
+      '<p><b>' + ic("idea") + ' Lo que aprendiste:</b> ' + textoHistoria(cap.leccion) + '</p><div class="centro">' +
+      (rc.pasa && hay ? '<button class="btn btn-principal" data-accion="jugarCapitulo" data-n="' + (n + 1) + '">' + ic("play") + ' Capítulo ' + (n + 1) + ': ' + hay.titulo + '</button> ' : '') +
+      (!rc.pasa ? '<button class="btn btn-principal" data-accion="jugarCapitulo" data-n="' + n + '">' + ic("reiniciar") + ' Reintentar el capítulo</button> ' : '') +
+      (rc.pasa && !hay ? '<button class="btn btn-principal" data-accion="historiaEpilogo">' + ic("trofeo") + ' Ver el epílogo</button> ' : '') +
+      '<button class="btn btn-secundario" data-accion="historiaVolver">Volver a los capítulos</button></div></div>';
+  }
+
+  function epilogo() {
+    const h = leerHistoria(), total = Object.keys(h.estrellas).reduce(function (t, k) { return t + h.estrellas[k]; }, 0);
+    abrirModal('<div class="evento"><div class="icono-grande-svg tono-bien">' + ic("medalla") + '</div><p class="etiqueta">' + DATOS.historia.titulo + ' · Epílogo</p>' +
+      '<h2>' + textoHistoria("{nombre}, astronauta") + '</h2><p class="historia-texto">' + textoHistoria(DATOS.historia.epilogo) + '</p>' +
+      '<div class="insignia"><div class="insignia-logo">' + ic("planeta") + '</div><div><b>' + textoHistoria("{nombre}") + '</b><small>Completó «' + DATOS.historia.titulo + '» · ' + total + ' de ' + DATOS.historia.capitulos.length * 3 + ' estrellas · ' + new Date().toLocaleDateString("es-CL") + '</small></div></div>' +
+      '<div class="centro"><button class="btn btn-principal" data-accion="historiaVolver">Volver a los capítulos</button></div></div>', true);
+    Voz.decir(textoHistoria(DATOS.historia.epilogo));
+  }
+
+  function volverHistoria() {
+    cerrarModal();
+    Modos.detenerReloj();
+    Supervivencia.detener();
+    estado.historia = null; estado.resultado = null; estado.contrato = null; estado.modoJuego = "completa";
+    irAFase(0);
+    estado.vistaInicio = "historia";
+    dibujarFase();
+  }
+
   function pantallaPreparar() {
     const vista = estado.vistaInicio;
     const equipo = vista === "equipo";
@@ -484,6 +610,10 @@
       html += '<p class="intro">Elige un contrato. Tendrás un reloj para preparar y lanzar la misión: si lanzas antes de que se acabe, ganas puntos extra.</p>' + tarjetasContratos();
     } else if (vista === "libre") {
       html += '<p class="intro">Sin límite de presupuesto ni de tiempo: prueba cualquier diseño, aunque sea carísimo. Los cohetes siguen teniendo un peso máximo (¡la física no se negocia!). En este modo no hay ranking.</p>';
+    } else if (vista === "marte") {
+      return html + pantallaPrepararMarte();
+    } else if (vista === "historia") {
+      return html + pantallaHistoria();
     }
 
     if (equipo) {
@@ -518,11 +648,165 @@
     return html;
   }
 
+  /* ---------- VARADO EN MARTE (supervivencia.js + datos/supervivencia.js) ---------- */
+  function pantallaPrepararMarte() {
+    const D = DATOS.supervivencia;
+    let html = '<div class="tarjeta marte-intro">' + foto("assets/imagenes/escenario-marte.jpg", "foto-tarjeta foto-alta") +
+      '<div><h3>' + ic("alerta") + ' ¿Qué pasó?</h3><p>' + D.historia.intro + '</p>' +
+      '<ul class="stats">' + stat("burbuja", "Respiras " + D.consumoPorSol.oxigeno + " kg de oxígeno por sol", "svOxigeno") + stat("gota", "Usas " + D.consumoPorSol.agua + " litros de agua por sol", "svAgua") +
+      stat("hoja", "Comes 1 ración por sol (unas 2.500 kcal)", "svComida") + stat("sol", "Un sol dura 24 h 39 min (en el juego, " + D.segundosPorSol + " segundos)", null) + '</ul>' +
+      '<label class="etiqueta-campo" for="nombre-marte">Tu nombre de astronauta (aparece en el traje)</label>' +
+      '<input id="nombre-marte" class="input-nombre" maxlength="10" placeholder="Ej.: Sofía" value="' + seguro(estado.nombreMarte || "") + '"></div></div>';
+    html += '<h3 class="subtitulo">Dificultad</h3><div class="grid-tarjetas tres">';
+    DATOS.dificultades.forEach(function (d) {
+      const sel = estado.dificultad === d.id;
+      html += '<div class="tarjeta elegible' + (sel ? " seleccionada" : "") + '" role="button" tabindex="0" data-accion="elegirDificultad" data-id="' + d.id + '">' +
+        '<div class="icono-grande-svg">' + ic(d.icono) + '</div><h3>' + d.nombre + '</h3>' +
+        '<ul class="stats">' + stat("cohete", "El rescate llega el sol " + (D.solesRescate[d.id] || 30), null) + '</ul></div>';
+    });
+    html += '</div><div class="centro"><button class="btn btn-principal btn-gigante" data-accion="comenzar">' + ic("casco") + ' Salir a Marte</button></div>';
+    return html;
+  }
+
+  function irMarte(nueva) {
+    if (estado.fase === 5) Simulacion.detener();
+    estado.fase = -2;
+    colaPaz = [];
+    $("#paz").classList.add("oculto");
+    estado.marteNueva = nueva;
+    dibujarFase();
+    ponerMusica();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (nueva) { decirPaz("Varado en Marte", DATOS.supervivencia.historia.intro); decirPaz("Ingeniera Paz", DATOS.supervivencia.historia.paz); }
+  }
+
+  // Imprevisto en Marte: una alerta o una decisión (el tiempo se detiene mientras está abierta)
+  let alElegirMarte = null, alTerminarDesafioMarte = null, desafioMarte = null;
+  function imprevistoMarte(ev, alElegir) {
+    alElegirMarte = alElegir;
+    let html = '<div class="evento">' + foto(ev.imagen, "foto-evento") + '<p class="etiqueta">Sol ' + Supervivencia.estado().sol + ' · ' + Supervivencia.textoHora(Supervivencia.estado().hora) + ' · Imprevisto</p>' +
+      '<h2>' + ev.titulo + '</h2><p>' + ev.texto + '</p>' +
+      '<div class="paz-dice"><div class="mini-avatar">' + avatarPaz() + '</div><p><b>Ingeniera Paz:</b> ' + ev.paz + '</p></div>';
+    if (alElegir && ev.opciones) {
+      html += '<div class="opciones-evento">' + ev.opciones.map(function (op, i) {
+        return '<button class="opcion-evento" data-accion="decidirMarte" data-i="' + i + '"><strong>' + op.texto + '</strong><small>' + op.explicacion + '</small></button>';
+      }).join("") + '</div>';
+    } else html += '<div class="centro"><button class="btn btn-principal" data-accion="decidirMarte" data-i="-1">Entendido</button></div>';
+    html += (ev.fuentes ? '<p class="centro">' + fuentesMini(ev.fuentes) + '</p>' : '') + '</div>';
+    abrirModal(html, false, true);
+    Voz.decir(ev.titulo + " " + ev.paz);
+  }
+  function decidirMarte(i) {
+    cerrarModal();
+    const cb = alElegirMarte; alElegirMarte = null;
+    if (cb && i >= 0) cb(i);
+  }
+
+  // Desafío (minijuego) en Marte: la "nave" que usa el minijuego es la base, con piezas avanzadas
+  function recursosMarte() {
+    const e = Object.assign({}, estado, { escenario: "marte", orbita: "baja", cohete: null, trayectoria: null, componentes: {}, instrumentos: Motor.escenario({ escenario: "marte" }).instrumentosRecomendados.slice() });
+    DATOS.componentes.forEach(function (c) { e.componentes[c.id] = c.id === "propulsion" ? "basica" : "avanzada"; });
+    return Motor.calcularRecursos(e);
+  }
+  function desafioMarteIntro(ev, alTerminar) {
+    desafioMarte = ev; alTerminarDesafioMarte = alTerminar;
+    const r = recursosMarte(), inf = Minijuegos.influencia(ev.minijuego, r), info = Minijuegos.info(ev.minijuego);
+    abrirModal('<div class="evento">' + foto(ev.imagen, "foto-evento") + '<p class="etiqueta">Sol ' + Supervivencia.estado().sol + ' · Desafío</p>' +
+      '<h2>' + ev.titulo + '</h2><p>' + ev.texto + '</p>' +
+      '<div class="paz-dice"><div class="mini-avatar">' + avatarPaz() + '</div><p><b>Ingeniera Paz:</b> ' + ev.paz + '</p></div>' +
+      '<div class="mj-influencia"><ul>' + inf.lineas.map(function (l) { return "<li>" + l + "</li>"; }).join("") + '</ul><p><small>' + ic(info.icono) + ' ' + info.controles + '</small></p></div>' +
+      '<div class="opciones-evento">' +
+        '<button class="opcion-evento destacada" data-accion="jugarMarte"><strong>' + ic("play") + ' Jugar el desafío</strong><small>Tu puntaje decide qué pasa.</small></button>' +
+        '<button class="opcion-evento" data-accion="autoMarte"><strong>' + ic("satelite") + ' Que lo haga el computador</strong><small>Lo resuelve a medias (resultado regular).</small></button>' +
+      '</div></div>', false, true);
+    Voz.decir(ev.titulo + " " + ev.paz);
+  }
+  function desafioMarteJugar() {
+    Voz.detener();
+    abrirModal('<div id="mj-contenedor"></div>', false, true);
+    Minijuegos.jugar(desafioMarte.minijuego, $("#mj-contenedor"), recursosMarte(), function (res) { desafioMarteResultado(res.puntaje, res.detalle); });
+  }
+  function desafioMarteResultado(puntaje, detalle) {
+    const ev = desafioMarte, nivel = Minijuegos.nivel(puntaje), pct = Math.round(puntaje * 100);
+    const titulos = { bien: "¡Excelente!", regular: "Bien, pero con costo", mal: "Fue muy difícil" };
+    Sonido.efecto(nivel === "bien" ? "exito" : (nivel === "regular" ? "exitoCorto" : "falla"));
+    abrirModal('<div class="evento"><div class="icono-grande-svg tono-' + (nivel === "mal" ? "mal" : "bien") + '">' + ic(nivel === "bien" ? "trofeo" : (nivel === "mal" ? "alerta" : "check")) + '</div>' +
+      '<h2>' + titulos[nivel] + '</h2><div class="mj-puntaje"><div class="barra grande"><div class="barra-relleno relleno-' + (nivel === "bien" ? "verde" : (nivel === "regular" ? "amarillo" : "rojo")) + '" style="width:' + Math.max(3, pct) + '%"></div></div><b>' + pct + '%</b></div>' +
+      '<p>' + detalle + '</p><p class="resultado-mj">' + ev.resultados[nivel].mensaje + '</p>' +
+      '<div class="centro"><button class="btn btn-principal" data-accion="volverMarte" data-nivel="' + nivel + '" data-pct="' + pct + '">Volver a Marte ' + ic("play") + '</button></div></div>', false, true);
+    Voz.decir(titulos[nivel] + ". " + ev.resultados[nivel].mensaje);
+  }
+  function volverMarte(nivel, pct) {
+    cerrarModal();
+    const cb = alTerminarDesafioMarte; alTerminarDesafioMarte = null; desafioMarte = null;
+    if (cb) cb(nivel, pct);
+  }
+
+  function salirMarte() {
+    Supervivencia.detener();
+    estado.modoJuego = "completa";
+    irAFase(0);
+    estado.vistaInicio = "modos";
+    dibujarFase();
+  }
+
+  function pantallaMarte() {
+    return '<div class="titulo-fase"><span class="titulo-icono">' + ic("casco") + '</span><div>' +
+      '<p class="num-fase">Varado en Marte · cráter Jezero</p><h2>Sobrevive hasta el rescate</h2></div></div>' +
+      '<div class="sv-contenedor" id="sv"></div>';
+  }
+
+  function guardarRecordMarte() {
+    const res = estado.resultadoMarte;
+    if (!res || res.guardado) return;
+    const nombre = ($("#nombre-record-marte").value || "").trim() || estado.nombreMarte || "Anónimo";
+    const lista = leerRecords();
+    lista.push({ nombre: nombre, escenario: "marte", dificultad: res.dificultad, modo: "marte", puntos: res.puntos, estrellas: res.estrellas,
+      sol: res.sol, ganaste: res.ganaste, fecha: new Date().toLocaleDateString("es-CL") });
+    lista.sort(function (a, b) { return b.puntos - a.puntos; });
+    try { localStorage.setItem(CLAVE_RECORDS, JSON.stringify(lista.slice(0, 100))); res.guardado = true; } catch (e) { decirPaz("No se pudo guardar", "Este navegador no permite guardar récords."); return; }
+    $("#record-marte").innerHTML = '<p>' + ic("check") + ' ¡Récord guardado!</p>' + tablaRecords({ modo: "marte", dificultad: res.dificultad, titulo: "Sobrevivientes de Marte" });
+  }
+
+  function terminarMarte(res) {
+    estado.resultadoMarte = res;
+    const titulo = res.ganaste ? "¡Rescate logrado!" : "La misión terminó";
+    // Modo historia: el capítulo se supera si te rescatan
+    let capituloHtml = "";
+    if (estado.historia) {
+      const h = leerHistoria(), n = estado.historia.capitulo;
+      if (res.ganaste) { h.estrellas[n] = Math.max(h.estrellas[n] || 0, res.estrellas); guardarHistoria(h); }
+      capituloHtml = tarjetaCapitulo({ pasa: res.ganaste, estrellas: res.estrellas });
+    }
+    abrirModal('<div class="evento"><div class="icono-grande-svg ' + (res.ganaste ? "tono-bien" : "tono-mal") + '">' + ic(res.ganaste ? "trofeo" : "alerta") + '</div>' +
+      '<h2>' + titulo + '</h2><p>' + res.causa + '</p>' + capituloHtml +
+      '<div class="grid-cifras tres">' +
+        '<div class="cifra"><span class="cifra-etiqueta">' + ic("sol") + ' Soles</span><span class="cifra-valor">' + res.sol + '</span><small>de ' + res.rescate + ' hasta el rescate</small></div>' +
+        '<div class="cifra"><span class="cifra-etiqueta">' + ic("corazon") + ' Salud final</span><span class="cifra-valor">' + res.salud + '%</span><small>' + fmt(res.radiacion, 1) + ' mSv de radiación</small></div>' +
+        '<div class="cifra"><span class="cifra-etiqueta">' + ic("trofeo") + ' Puntos</span><span class="cifra-valor">' + res.puntos + '</span><small>' + res.datos + ' datos de Marte aprendidos</small></div></div>' +
+      '<ul class="stats en-fila">' + stat("hoja", res.cosechas + " cosecha(s)", null) + stat("gota", res.viajesHielo + " viaje(s) por hielo", null) + stat("sol", res.limpiezas + " limpieza(s) de paneles", null) +
+        stat("casco", fmt(res.horasAfuera, 0) + " horas afuera", null) + (res.desafios ? stat("trofeo", "Desafíos: " + res.desafios + "% de promedio", null) : "") + '</ul>' +
+      '<div class="estrellas centro">' + estrellasHtml(res.estrellas) + '</div>' +
+      (res.aprendido.length ? '<div class="tarjeta"><h3>' + ic("idea") + ' Lo que aprendiste de Marte</h3><ul class="lista-aprendido">' +
+        res.aprendido.map(function (d) { return '<li><b>' + d.titulo + ':</b> ' + d.texto + ' ' + fuentesMini(d.fuentes) + '</li>'; }).join("") + '</ul></div>' : '') +
+      '<div class="tarjeta" id="record-marte"><h3>' + ic("medalla") + ' Guardar en el ranking</h3><div class="fila-record"><input id="nombre-record-marte" class="input-nombre" maxlength="24" placeholder="Tu nombre" value="' + seguro(estado.nombreMarte || "") + '">' +
+        '<button class="btn btn-principal" data-accion="guardarRecordMarte">Guardar</button></div>' + tablaRecords({ modo: "marte", dificultad: res.dificultad, titulo: "Sobrevivientes de Marte" }) + '</div>' +
+      '<div class="centro"><button class="btn btn-principal" data-accion="marteOtraVez">' + ic("reiniciar") + ' Jugar otra vez</button> <button class="btn btn-secundario" data-accion="marteSalir">Salir al menú</button></div></div>', false, true);
+    Voz.decir(titulo + ". " + res.causa);
+  }
+
   // Transición suave del inicio al centro de control
   function comenzar() {
     if (!puedeAvanzar(0).ok) return;
     // Preparar el modo elegido
     const vista = estado.vistaInicio;
+    if (vista === "marte") {
+      const campo = $("#nombre-marte");
+      estado.nombreMarte = (campo && campo.value.trim()) || "";
+      estado.modoJuego = "marte";
+      irMarte(true);
+      return;
+    }
     estado.modoJuego = vista === "rapida" ? "rapida" : (vista === "libre" ? "libre" : "completa");
     estado.modo = vista === "equipo" ? "equipo" : "individual";
     estado.resultado = null; estado.lanzamiento = null;
@@ -1310,6 +1594,8 @@
     if (estado.modoJuego === "rapida" && estado.contrato) {
       informe.contrato = Modos.evaluar(Modos.contrato(estado.contrato), r, informe, s, estado.lanzamiento || { aTiempo: false, minutosSobrantes: 0 });
       informe.total += informe.contrato.bono;
+      // Modo historia: guardar el resultado del capítulo
+      if (estado.historia) informe.capitulo = resultadoCapitulo(estado.historia.capitulo, informe.contrato.cumplidos, informe.contrato.total, informe.contrato.completo);
     }
     // Cohetes reutilizables: puntos por aterrizar la primera etapa
     if (estado.aterrizaje) { informe.aterrizaje = estado.aterrizaje; informe.total += estado.aterrizaje.puntos; }
@@ -1362,7 +1648,7 @@
     }).slice(0, 5);
     let html = '<div class="tarjeta records"><h3>' + ic("medalla") + ' ' + (filtro.titulo || "Salón de la fama") + '</h3>';
     if (filtro.pestanas) {
-      html += '<div class="pestanas">' + ["completa", "rapida"].map(function (id) {
+      html += '<div class="pestanas">' + ["completa", "rapida", "marte"].map(function (id) {
         return '<button class="btn btn-mini' + (rankingModo === id ? " activa" : "") + '" data-accion="rankingModo" data-id="' + id + '">' + Modos.modo(id).nombre + '</button>';
       }).join("") + '</div>';
     }
@@ -1371,7 +1657,8 @@
       const esc = Motor.buscar(DATOS.escenarios, x.escenario), dif = Motor.buscar(DATOS.dificultades, x.dificultad);
       const c = x.contrato ? Modos.contrato(x.contrato) : null;
       return '<li><b>' + seguro(x.nombre) + '</b> — ' + x.puntos + ' pts ' + estrellasHtml(x.estrellas) +
-        '<br><small>' + (c ? "Contrato: " + c.nombre : (esc ? esc.nombre : "")) + ' · ' + (dif ? dif.nombre : "") + ' · ' + x.fecha + '</small></li>';
+        '<br><small>' + (x.modo === "marte" ? "Varado en Marte · " + (x.ganaste ? "rescatado el sol " + x.sol : "resistió hasta el sol " + x.sol) : (c ? "Contrato: " + c.nombre : (esc ? esc.nombre : ""))) +
+        ' · ' + (dif ? dif.nombre : "") + ' · ' + x.fecha + '</small></li>';
     }).join("") + '</ol></div>';
     return html;
   }
@@ -1389,6 +1676,7 @@
       (inf.contrato ? ' + ' + inf.contrato.bono + ' del contrato' : '') +
       (inf.aterrizaje && inf.aterrizaje.puntos ? ' + ' + inf.aterrizaje.puntos + ' del aterrizaje' : '') + ')</small></div>';
 
+    if (inf.capitulo && estado.historia) html += tarjetaCapitulo(inf.capitulo);
     html += tarjetaCoheteInforme(r, inf);
 
     // Misión rápida: resultado del contrato, objetivo por objetivo
@@ -1491,13 +1779,19 @@
      CAMBIO DE FASE
      ================================================================= */
   function dibujarFase() {
-    const pantallas = { "-1": pantallaHangar, 0: pantallaInicio, 1: pantallaEncargo, 2: pantallaNave, 3: pantallaInstrumentos, 4: pantallaOrbitaCohete, 5: pantallaSimulacion, 6: pantallaInforme };
+    const pantallas = { "-2": pantallaMarte, "-1": pantallaHangar, 0: pantallaInicio, 1: pantallaEncargo, 2: pantallaNave, 3: pantallaInstrumentos, 4: pantallaOrbitaCohete, 5: pantallaSimulacion, 6: pantallaInforme };
     $("#pantalla").innerHTML = '<section class="fase">' + pantallas[estado.fase]() + '</section>';
     if (estado.fase === 5) prepararSimulacion();
     if (estado.fase === -1) {
       Hangar.mundo.recursos = estado.escenario ? Motor.calcularRecursos(estado) : null;
       Hangar.iniciar($("#hangar"), { estadoEstacion: estadoEstacion, alEntrar: entrarEstacion });
     } else Hangar.detener();
+    if (estado.fase === -2) {
+      Supervivencia.mundo.nombre = estado.nombreMarte || "TÚ";
+      Supervivencia.iniciar($("#sv"), { nueva: estado.marteNueva, dificultad: estado.dificultad, decirPaz: decirPaz, alTerminar: terminarMarte,
+        mostrarImprevisto: imprevistoMarte, jugarDesafio: desafioMarteIntro });
+      estado.marteNueva = false;
+    } else Supervivencia.detener();
     montar3D();
     actualizarPanel();
     actualizarNavegacion();
@@ -1553,10 +1847,25 @@
       case "anterior":
         if (estado.fase === 0) { estado.vistaInicio = estado.vistaInicio === "modos" ? "menu" : "modos"; dibujarFase(); break; }
         if (estado.fase === -1) { irAFase(0); break; }
+        if (estado.fase === -2) { if (estado.historia) volverHistoria(); else salirMarte(); break; }
         if (estado.fase === 1) { irHangar(); break; }       // de la fase 1 se vuelve al centro de control
         irAFase(estado.fase - 1);
         break;
       case "irHangar": irHangar(); break;
+      case "marteOtraVez": cerrarModal(); irMarte(true); break;
+      case "decidirMarte": decidirMarte(Number(el.dataset.i)); break;
+      case "jugarMarte": desafioMarteJugar(); break;
+      case "autoMarte": desafioMarteResultado(0.45 + Math.random() * 0.15, "El computador de la base hizo lo justo."); break;
+      case "volverMarte": volverMarte(el.dataset.nivel, Number(el.dataset.pct)); break;
+      case "guardarRecordMarte": guardarRecordMarte(); break;
+      case "marteSalir": cerrarModal(); if (estado.historia) volverHistoria(); else salirMarte(); break;
+      case "jugarCapitulo": cerrarModal(); introCapitulo(Number(el.dataset.n)); break;
+      case "empezarCapitulo": empezarCapitulo(Number(el.dataset.n)); break;
+      case "historiaVolver": volverHistoria(); break;
+      case "historiaEpilogo": epilogo(); break;
+      case "historiaBorrar":
+        if (confirm("¿Borrar todo el progreso de la historia en este navegador? No se puede deshacer.")) { try { localStorage.removeItem(CLAVE_HISTORIA); } catch (e) { /* nada */ } estado.nombreHistoria = ""; dibujarFase(); }
+        break;
       case "estacion": entrarEstacion(Hangar.estaciones().find(function (x) { return x.id === el.dataset.id; })); break;
       case "irFase": irAFase(Number(el.dataset.fase)); break;
       case "menuJugar": estado.modo = "individual"; estado.vistaInicio = "jugar"; dibujarFase(); window.scrollTo(0, 0); break;
@@ -1564,6 +1873,7 @@
       case "elegirModoJuego": {
         const id = el.dataset.id;
         estado.vistaInicio = id === "completa" ? "jugar" : id;
+        estado.historia = null;                       // elegir otro modo sale de la historia
         if (id === "equipo") estado.modo = "equipo";
         dibujarFase(); window.scrollTo(0, 0);
         break;
@@ -1585,7 +1895,8 @@
       case "cerrarPaz": siguientePaz(); break;
       case "abrirPaz": {
         const c = estado.fase === 0 ? DATOS.conceptos.inicio :
-          (estado.fase === -1 ? { titulo: "El centro de control", texto: "Camina con las flechas o WASD hasta una estación y pulsa E o ENTRAR. También puedes tocar los botones de abajo." } : DATOS.conceptos["fase" + estado.fase]);
+          (estado.fase === -2 ? { titulo: "Varado en Marte", texto: "Camina con las flechas o WASD (en tablet, con el control). Acércate a un lugar y pulsa E para trabajar. Mira el panel: oxígeno, agua, comida y energía deben durar hasta el rescate. De noche hace mucho frío y el traje se gasta más rápido." } :
+           estado.fase === -1 ? { titulo: "El centro de control", texto: "Camina con las flechas o WASD hasta una estación y pulsa E o ENTRAR. También puedes tocar los botones de abajo." } : DATOS.conceptos["fase" + estado.fase]);
         colaPaz = [];
         decirPaz(c.titulo, c.texto);
         break;
@@ -1681,6 +1992,7 @@
       case "otraMision":
         estado.resultado = null;
         Modos.detenerReloj();
+        if (estado.historia) { volverHistoria(); break; }
         if (estado.modoJuego === "rapida") { estado.contrato = null; estado.vistaInicio = "rapida"; estado.faseMax = 0; irAFase(0); estado.vistaInicio = "rapida"; dibujarFase(); break; }
         estado.faseMax = 1;
         irAFase(1);
@@ -1784,6 +2096,7 @@
     window.PruebaJuego = {
       estado: estado, irAFase: irAFase, irHangar: irHangar, redibujar: dibujarFase, cambioDiseno: cambioDiseno,
       practicar: practicar, lanzar: lanzar, decirPaz: decirPaz, cerrarModal: cerrarModal,
+      irMarte: irMarte, volverHistoria: volverHistoria, introCapitulo: introCapitulo,
       recursos: function () { return Motor.calcularRecursos(estado); }
     };
   }

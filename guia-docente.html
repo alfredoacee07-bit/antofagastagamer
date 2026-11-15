@@ -85,12 +85,16 @@
   <div class="caja"><b>Ventanas de lanzamiento.</b> La Tierra y Marte giran a distinta velocidad. El viaje más barato sale cuando Marte va unos 44° adelante de la Tierra, y esa posición se repite cada ~26 meses. El juego usa posiciones reales de NASA JPL Horizons: las ventanas aparecen en diciembre de 2028–enero de 2029 y en febrero–marzo de 2031.</div>
   <div class="caja"><b>Orientarse por las estrellas.</b> Las naves usan un rastreador de estrellas: una cámara compara el cielo con un mapa. Desde Chile se puede encontrar el Polo Sur celeste prolongando el palo largo de la Cruz del Sur (de Gacrux a Acrux) unas 4,5 veces.</div>
 
+  <div class="caja"><b>Vivir en Marte.</b> Una persona usa cada día unos 0,84 kg de oxígeno, 3 litros de agua y una ración de comida. En Marte hay que producirlos allí: oxígeno del CO<sub>2</sub> del aire (como MOXIE de Perseverance), agua del hielo y comida del invernadero, todo con la energía del Sol. El polvo tapa los paneles, de noche hace unos −80 °C y, sin campo magnético, la radiación es mucho mayor que en la Tierra (RAD de Curiosity midió unos 0,67 mSv por día). Preguntas para la clase: ¿qué apagarías durante una tormenta de polvo? ¿Por qué conviene no salir de noche?</div>
+
   <h2>6b. Formas de jugar</h2>
   <ul>
     <li><b>Misión completa:</b> las 6 fases con presupuesto, ideal para una clase de 90 minutos.</li>
     <li><b>Misión rápida:</b> un contrato con objetivos y reloj (12 a 15 minutos), con ranking por contrato.</li>
     <li><b>Modo libre:</b> sin límite de presupuesto, para experimentar (no entra al ranking).</li>
+    <li><b>Modo historia «Rumbo a Marte»:</b> el estudiante escribe su nombre y es la protagonista de 5 capítulos (glaciares, incendios, Luna, ventana a Marte y supervivencia en Marte). Cada capítulo tiene una meta, presupuesto y reloj, y termina con «Lo que aprendiste». El progreso se guarda en el navegador.</li>
     <li><b>Modo equipo:</b> de 2 a 4 estudiantes con roles (directora, ingeniera, científica y comunicaciones).</li>
+    <li><b>Varado en Marte:</b> el estudiante camina en 3D por el cráter Jezero y debe sobrevivir hasta el rescate (20, 30 o 40 soles) produciendo oxígeno, agua, comida y energía. Dura de 15 a 30 minutos.</li>
   </ul>
   <p><b>Ambiente de prueba:</b> abra <code>prueba.html</code> para preparar la clase. Tiene un panel con atajos para armar una misión lista, saltar a cualquier fase, jugar cada desafío y acelerar la simulación. Antes de la clase use "Borrar todo" para dejar limpios los récords del computador.</p>
 
@@ -126,6 +130,7 @@
 <script src="js/datos/motores.js"></script>
 <script src="js/datos/trayectorias.js"></script>
 <script src="js/datos/estrellas.js"></script>
+<script src="js/datos/supervivencia.js"></script>
 <script>
   // Llena la tabla de escenarios y la lista de fuentes desde los datos del juego
   (function () {

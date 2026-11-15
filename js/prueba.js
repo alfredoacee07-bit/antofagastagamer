@@ -112,7 +112,22 @@
         '<p class="pr-nota" id="pr-flota"></p>' +
       '</details>' +
 
-      '<details><summary>6. Datos guardados</summary><div class="pr-botones">' +
+      '<details><summary>6. Varado en Marte</summary>' +
+        '<div class="pr-botones"><button data-pr="marte" class="pr-fuerte">' + ic("casco") + ' Empezar en Marte</button>' +
+        '<button data-pr="mHoras" data-h="6">+6 horas</button><button data-pr="mHoras" data-h="24.66">+1 sol</button>' +
+        '<button data-pr="mRescate">Ir al día del rescate</button><button data-pr="mLlenar">Llenar recursos</button><button data-pr="mReparar">Reparar todo</button></div>' +
+        fila("Imprevisto", '<select id="pr-imprevisto">' + opcionesSelect(DATOS.supervivencia.eventos.map(function (ev) { return [ev.id, ev.titulo]; })) + '</select>') +
+        '<div class="pr-botones"><button data-pr="mEvento">Provocar ahora</button></div>' +
+        '<p class="pr-nota">La dificultad es la de la sección 1. Estos atajos solo funcionan con una partida de Marte abierta.</p>' +
+      '</details>' +
+
+      '<details><summary>7. Modo historia</summary><div class="pr-botones">' +
+        [1, 2, 3, 4, 5].map(function (n) { return '<button data-pr="capitulo" data-n="' + n + '">Cap. ' + n + '</button>'; }).join("") +
+        '<button data-pr="hDesbloquear">Desbloquear todos</button><button data-pr="hBorrar">Borrar progreso</button></div>' +
+        '<p class="pr-nota">«Cap. N» abre la presentación del capítulo (aunque esté bloqueado).</p>' +
+      '</details>' +
+
+      '<details><summary>8. Datos guardados</summary><div class="pr-botones">' +
         '<button data-pr="borrar" data-k="spaceSimulator.records">Borrar récords</button>' +
         '<button data-pr="borrar" data-k="spaceSimulator.opciones">Borrar opciones</button>' +
         '<button data-pr="borrarTodo">Borrar todo</button></div>' +
@@ -150,9 +165,31 @@
     else if (tipo === "recuperada") { Cohetes.registrarRecuperacion(E.coheteDiseno || Cohetes.disenoPorDefecto()); J.redibujar(); avisar("Etapa agregada a la flota."); }
     else if (tipo === "vaciarFlota") { try { localStorage.removeItem("spaceSimulator.flota"); } catch (x) { /* nada */ } J.redibujar(); avisar("Flota vacía."); }
     else if (tipo === "borrar") { if (confirm("¿Borrar " + b.textContent.toLowerCase().replace("borrar ", "") + " de este navegador? No se puede deshacer.")) { try { localStorage.removeItem(b.dataset.k); } catch (x) { /* nada */ } avisar("Borrado."); } }
+    else if (tipo === "marte") { E.dificultad = val("pr-dificultad"); E.historia = null; E.modoJuego = "marte"; J.irMarte(true); avisar("Partida nueva en Marte (" + E.dificultad + ")."); }
+    else if (tipo.charAt(0) === "m" && tipo !== "minijuego") {
+      const s = Supervivencia.estado();
+      if (E.fase !== -2 || !s || s.terminado) { avisar("Primero empieza una partida en Marte.", true); return; }
+      if (tipo === "mHoras") { Supervivencia.avanzar(Number(b.dataset.h)); avisar("Avanzó el reloj: sol " + s.sol + ", " + Supervivencia.textoHora(s.hora) + "."); }
+      else if (tipo === "mRescate") { s.sol = s.rescate; s.hora = 8.5; s.eventos.forEach(function (it) { it.hecho = true; }); avisar("Sol " + s.rescate + ", 8:30. La nave baja a las 9:00 en la zona de aterrizaje."); }
+      else if (tipo === "mLlenar") { const m = DATOS.supervivencia.maximos; ["oxigeno", "agua", "comida", "energia", "traje", "salud"].forEach(function (k) { s.rec[k] = m[k]; }); s.rec.polvo = 0; avisar("Recursos al máximo."); }
+      else if (tipo === "mReparar") { s.roto.oxigeno = false; s.roto.antena = false; s.tormenta = null; s.solar = null; avisar("Todo reparado y sin tormentas."); }
+      else if (tipo === "mEvento") {
+        const it = s.eventos.find(function (x) { return x.ev.id === val("pr-imprevisto"); });
+        if (it) { it.hecho = false; it.sol = s.sol; it.hora = 0; Supervivencia.avanzar(0.25); avisar("Imprevisto provocado."); }
+        else { s.perdidoHecho = false; avisar("«Perderse de noche» ocurre solo: sal de noche a más de 14 m de la base (desde el sol 3).", true); }
+      }
+    }
+    else if (tipo === "capitulo") { J.introCapitulo(Number(b.dataset.n)); }
+    else if (tipo === "hDesbloquear") {
+      let h = {}; try { h = JSON.parse(localStorage.getItem("spaceSimulator.historia")) || {}; } catch (x) { /* nada */ }
+      h.estrellas = h.estrellas || {}; [1, 2, 3, 4].forEach(function (n) { h.estrellas[n] = Math.max(h.estrellas[n] || 0, 2); });
+      try { localStorage.setItem("spaceSimulator.historia", JSON.stringify(h)); } catch (x) { /* nada */ }
+      J.redibujar(); avisar("Capítulos 1 a 5 desbloqueados (los 4 primeros con 2 estrellas).");
+    }
+    else if (tipo === "hBorrar") { if (confirm("¿Borrar el progreso de la historia? No se puede deshacer.")) { try { localStorage.removeItem("spaceSimulator.historia"); } catch (x) { /* nada */ } J.redibujar(); avisar("Progreso de la historia borrado."); } }
     else if (tipo === "borrarTodo") {
-      if (confirm("¿Borrar récords, flota y opciones de SPACE SIMULATOR en este navegador? No se puede deshacer.")) {
-        ["spaceSimulator.records", "spaceSimulator.flota", "spaceSimulator.opciones", "misionCondor.records"].forEach(function (k) { try { localStorage.removeItem(k); } catch (x) { /* nada */ } });
+      if (confirm("¿Borrar récords, flota, historia y opciones de SPACE SIMULATOR en este navegador? No se puede deshacer.")) {
+        ["spaceSimulator.records", "spaceSimulator.flota", "spaceSimulator.opciones", "spaceSimulator.historia", "misionCondor.records"].forEach(function (k) { try { localStorage.removeItem(k); } catch (x) { /* nada */ } });
         avisar("Todo borrado. Recarga la página para empezar limpio.");
       }
     }
@@ -170,6 +207,20 @@
     if (!caja) return;
     const flota = Cohetes.leerFlota();
     document.getElementById("pr-flota").textContent = "Flota: " + (Object.keys(flota).length ? Object.keys(flota).map(function (k) { return k + " × " + flota[k]; }).join(", ") : "vacía");
+    // En Marte: los números de la supervivencia
+    const sv = E.fase === -2 && Supervivencia.estado();
+    if (sv) {
+      const r2 = sv.rec, prox = sv.eventos.filter(function (x) { return !x.hecho; }).sort(function (a, b) { return a.sol - b.sol; })[0];
+      const f2 = [["Marte", "sol " + sv.sol + " de " + sv.rescate + " · " + Supervivencia.textoHora(sv.hora) + (sv.fuera ? " · afuera" : " · en la base")],
+        ["Recursos", "O2 " + fmt(r2.oxigeno, 1) + " · agua " + fmt(r2.agua, 1) + " · comida " + fmt(r2.comida, 1)],
+        ["Energía", fmt(r2.energia, 1) + " kWh · paneles " + Math.round((1 - r2.polvo) * 100) + "%"],
+        ["Traje/salud", Math.round(r2.traje) + "% · " + Math.round(r2.salud) + "% · " + fmt(r2.radiacion, 1) + " mSv"],
+        ["Roto", (sv.roto.oxigeno ? "generador " : "") + (sv.roto.antena ? "antena" : "") || "nada"],
+        ["Próximo", prox ? prox.ev.titulo + " (sol " + prox.sol + ")" : "sin imprevistos pendientes"],
+        ["Nave", Supervivencia.mundo.nave().fase]];
+      caja.innerHTML = f2.map(function (f) { return '<div><span>' + f[0] + '</span><b>' + f[1] + '</b></div>'; }).join("");
+      return;
+    }
     if (!E.escenario) { caja.innerHTML = "Fase " + E.fase + " · sin misión elegida."; return; }
     let r;
     try { r = J.recursos(); } catch (x) { caja.textContent = "Faltan piezas para calcular (" + x.message + ")."; return; }

@@ -17,6 +17,8 @@ Descarga el proyecto (botón verde **Code → Download ZIP**), descomprímelo y 
 - Cohete propio por etapas (ecuación del cohete, empuje/peso) y aterrizaje de la primera etapa reutilizable.
 - Planificador del viaje con ventanas de lanzamiento calculadas con **posiciones reales de NASA JPL Horizons**, asistencia gravitatoria y el paso cercano de Apofis en 2029.
 - Orientación por constelaciones reales del cielo del sur (rastreador de estrellas).
+- **Modo historia «Rumbo a Marte»**: 5 capítulos donde tú eres el/la protagonista, desde tu primer satélite hasta sobrevivir en Marte.
+- **Varado en Marte**: camina en 3D por el cráter Jezero y sobrevive hasta el rescate produciendo oxígeno, agua, comida y energía, con datos reales de MOXIE, RAD de Curiosity e InSight.
 - Misión completa, Misión rápida con contratos y reloj, Modo libre y Modo equipo (2 a 4 roles).
 - 7 desafíos (minijuegos), vista 3D, videos, música, efectos y la voz de la Ingeniera Paz.
 - Informe final con explicaciones, ranking y preguntas de reflexión.

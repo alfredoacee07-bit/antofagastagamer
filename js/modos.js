@@ -35,6 +35,8 @@ const Modos = (function () {
         : "Usar la " + nombreOrbita(c.escenario, o.valor);
       case "instrumento": return "Llevar a bordo: " + nombreInstrumento(c.escenario, o.valor);
       case "desafios": return "Promedio de al menos " + o.valor + "% en los desafíos";
+      case "cohetePropio": return "Lanzar con un cohete diseñado por ti (por etapas)";
+      case "ventana": return "Lanzar en un mes muy bueno de la ventana (verde en el planificador)";
       default: return o.tipo;
     }
   }
@@ -53,6 +55,8 @@ const Modos = (function () {
         if (!d.length) return true;      // si no hubo desafíos, no se exige
         return d.reduce(function (t, x) { return t + x.puntaje; }, 0) / d.length >= o.valor;
       }
+      case "cohetePropio": return !!(r.cohete && r.cohete.propio);
+      case "ventana": return !!(r.viaje && r.viaje.mes && typeof Trayectorias !== "undefined" && Trayectorias.calidad(r.viaje) === "buena");
       default: return false;
     }
   }

@@ -54,7 +54,8 @@ const Vista3D = (function () {
     redimensionar();
     requestAnimationFrame(redimensionar);
     ultimo = performance.now();
-    if (!raf) raf = requestAnimationFrame(bucle);
+    if (raf) cancelAnimationFrame(raf);          // siempre se reinicia el bucle (evita quedar esperando un cuadro viejo)
+    raf = requestAnimationFrame(bucle);
   }
 
   function redimensionar() {
@@ -596,7 +597,7 @@ const Vista3D = (function () {
      "mundo" viene de hangar.js: posición del jugador y estaciones
      ================================================================= */
   // Astronauta con traje completo y visor dorado (no se ve la cara)
-  function crearAstronauta() {
+  function crearAstronauta(textoParche) {
     const a = new THREE.Group();
     const traje = mat(0xf0f0ee, 0.05, 0.85), gris = mat(0x9aa0aa, 0.4, 0.6), oscuro = mat(0x2a2d33, 0.3, 0.7);
     const naranja = mat(0xff7b00, 0.1, 0.7);
@@ -627,20 +628,21 @@ const Vista3D = (function () {
     a.userData.piernaD = extremidad(0.16, 0.95, 0.5, 0.12, traje, bota);
     [-1, 1].forEach(function (l) { const banda = cilindro(0.105, 0.105, 0.06, naranja, 12); banda.position.y = -0.25; (l < 0 ? a.userData.brazoI : a.userData.brazoD).add(banda); });
     // Parche con el nombre (PAZ) en el pecho y bandera de Chile en el hombro
-    const parche = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.09), new THREE.MeshStandardMaterial({ map: texturaParche(), roughness: 0.8 }));
+    const parche = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.09), new THREE.MeshStandardMaterial({ map: texturaParche(textoParche), roughness: 0.8 }));
     parche.position.set(-0.13, 1.56, 0.29); parche.rotation.y = -0.15; a.add(parche);
     const bandera = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.1), new THREE.MeshStandardMaterial({ map: texturaBandera(), roughness: 0.8, side: THREE.DoubleSide }));
     bandera.position.set(0, -0.08, 0.105); a.userData.brazoD.add(bandera);
     return a;
   }
 
-  function texturaParche() {
+  function texturaParche(texto) {
     const c = document.createElement("canvas"); c.width = 256; c.height = 104;
     const g = c.getContext("2d");
+    texto = (texto || "PAZ").toUpperCase().slice(0, 10);
     g.fillStyle = "#1d2b64"; g.fillRect(0, 0, 256, 104);
     g.strokeStyle = "#ffb703"; g.lineWidth = 8; g.strokeRect(4, 4, 248, 96);
-    g.fillStyle = "#ffffff"; g.font = "bold 64px Trebuchet MS, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText("PAZ", 128, 56);
+    g.fillStyle = "#ffffff"; g.font = "bold " + (texto.length <= 4 ? 64 : Math.max(26, Math.round(230 / texto.length * 1.6))) + "px Trebuchet MS, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(texto, 128, 56);
     const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
   }
   function texturaBandera() {         // bandera de Chile
@@ -803,6 +805,199 @@ const Vista3D = (function () {
     return true;
   }
 
+  /* =================================================================
+     ESCENA 6: "Varado en Marte" — el cráter Jezero, la base y el astronauta
+     "mundo" viene de supervivencia.js (jugador, lugares, rocas, relieve, hora)
+     ================================================================= */
+  function mostrarMarte(cont, mundo) {
+    if (!disponible()) return false;
+    const sol = nuevaEscena(50);
+    modoActual = "marte";
+    controles.activo = false;
+    const D = DATOS.supervivencia;
+    const cielo = new THREE.Color(), colorDia = new THREE.Color(0xc99c74), colorAtardecer = new THREE.Color(0x6f8db8), colorNoche = new THREE.Color(0x07070f);
+    escena.background = cielo;
+    escena.fog = new THREE.Fog(0xc99c74, 35, 120);
+    const hemi = new THREE.HemisphereLight(0xffd9b0, 0x5a2a18, 0.5); escena.add(hemi);
+    const estrellas = crearEstrellas(900); estrellas.material.fog = false; estrellas.material.transparent = true; escena.add(estrellas);
+    // Fobos y Deimos (las dos lunas)
+    const fobos = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 8), new THREE.MeshBasicMaterial({ color: 0x9a8f86, fog: false, transparent: true }));
+    const deimos = new THREE.Mesh(new THREE.SphereGeometry(1.4, 10, 8), new THREE.MeshBasicMaterial({ color: 0xb3a99f, fog: false, transparent: true }));
+    escena.add(fobos); escena.add(deimos);
+    // Disco del Sol (se ve más pequeño que desde la Tierra)
+    const discoSol = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff4dc, fog: false }));
+    escena.add(discoSol);
+
+    // --- Terreno con relieve y colores de óxido ---
+    const T = 140, seg = calidadBaja ? 70 : 140;
+    const geo = new THREE.PlaneGeometry(T, T, seg, seg); geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position, colores = new Float32Array(pos.count * 3);
+    const tonos = [new THREE.Color(0xb5562d), new THREE.Color(0x8f3f22), new THREE.Color(0xc87a4a), new THREE.Color(0x6e2f1a)];
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i);
+      pos.setY(i, mundo.altura(x, z));
+      const n = (Math.sin(x * 0.9) * Math.cos(z * 1.1) + Math.sin(x * 0.23 + z * 0.31) + 2) / 4;
+      const c = tonos[Math.floor(n * 3.99)].clone().lerp(tonos[(Math.floor(n * 3.99) + 1) % 4], (n * 4) % 1 * 0.5);
+      colores.set([c.r, c.g, c.b], i * 3);
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(colores, 3));
+    geo.computeVertexNormals();
+    escena.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })));
+
+    // --- Rocas ---
+    const matRoca = [mat(0x5e2a18, 0, 0.95), mat(0x7a3a22, 0, 0.9), mat(0x4a2216, 0, 0.95)];
+    mundo.rocas.forEach(function (r, k) {
+      const roca = new THREE.Mesh(new THREE.DodecahedronGeometry(r.t, 0), matRoca[k % 3]);
+      roca.position.set(r.x, mundo.altura(r.x, r.z) + r.t * 0.25, r.z);
+      roca.rotation.set(r.giro, r.giro * 1.7, r.giro * 0.6); roca.scale.y = 0.6;
+      escena.add(roca);
+    });
+
+    // --- Lugares ---
+    const blanco = mat(0xf0efe9, 0.15, 0.6), gris = mat(0x8d939c, 0.5, 0.5), oscuro = mat(0x2a2d33, 0.3, 0.6);
+    const objetos = {};
+    mundo.lugares.forEach(function (l) {
+      const g = new THREE.Group(); g.position.set(l.x, 0, l.z); escena.add(g); objetos[l.id] = g;
+      if (l.id === "base") {
+        const cuerpo = cilindro(3.2, 3.2, 2.6, blanco, 40); cuerpo.position.y = 1.3; g.add(cuerpo);
+        const cupula = new THREE.Mesh(new THREE.SphereGeometry(3.2, 40, 16, 0, Math.PI * 2, 0, Math.PI / 2), blanco); cupula.position.y = 2.6; cupula.scale.y = 0.45; g.add(cupula);
+        const esclusa = caja(1.6, 2.1, 2, blanco); esclusa.position.set(0, 1.05, 3.6); g.add(esclusa);
+        const puerta = caja(0.9, 1.6, 0.05, oscuro); puerta.position.set(0, 0.85, 4.61); g.add(puerta);
+        for (let k = 0; k < 6; k++) {
+          const a = k / 6 * Math.PI * 2 + 0.5, v = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), new THREE.MeshBasicMaterial({ color: 0xffd98a }));
+          v.position.set(Math.sin(a) * 3.22, 1.7, Math.cos(a) * 3.22); v.rotation.y = a; g.add(v);
+        }
+        const franja = cilindro(3.22, 3.22, 0.18, mat(0xff7b00, 0.1, 0.6), 40); franja.position.y = 0.4; g.add(franja);
+      } else if (l.id === "paneles") {
+        g.userData.paneles = [];
+        for (let fx = -1; fx <= 1; fx++) for (let fz = -1; fz <= 1; fz += 2) {
+          const p = caja(1.9, 0.06, 1.2, mat(0x1d3d8f, 0.6, 0.35)); p.position.set(fx * 2.1, 1.1, fz * 0.9); p.rotation.x = -0.35 * fz; g.add(p); g.userData.paneles.push(p);
+          const poste = cilindro(0.05, 0.05, 1.1, gris, 8); poste.position.set(fx * 2.1, 0.55, fz * 0.9); g.add(poste);
+        }
+      } else if (l.id === "oxigeno") {
+        const maquina = caja(1.6, 1.1, 1.2, mat(0xd9d9d4, 0.4, 0.5)); maquina.position.y = 0.55; g.add(maquina);
+        const tubo = cilindro(0.12, 0.12, 1.6, gris, 10); tubo.position.set(0.5, 1.4, 0); g.add(tubo);
+        const tanque = cilindro(0.35, 0.35, 1.2, mat(0x3a6ea5, 0.4, 0.4), 16); tanque.position.set(-1.1, 0.6, 0); g.add(tanque);
+        const luz = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), new THREE.MeshBasicMaterial({ color: 0x3ddc84 })); luz.position.set(0, 1.18, 0.62); g.add(luz);
+        g.userData.luz = luz;
+      } else if (l.id === "invernadero") {
+        const tunel = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 5, 24, 1, true, 0, Math.PI), mat(0xcfe8ff, 0.1, 0.15, { transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+        tunel.rotation.z = Math.PI / 2; tunel.rotation.y = Math.PI / 2; tunel.position.y = 0; g.add(tunel);
+        const suelo = caja(4.2, 0.2, 4.6, mat(0x4a2a1a, 0, 0.95)); suelo.position.y = 0.1; g.add(suelo);
+        g.userData.plantas = [];
+        for (let px = -1; px <= 1; px++) for (let pz = -2; pz <= 2; pz++) {
+          const planta = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), mat(0x4caf50, 0, 0.8)); planta.position.set(px * 1.1, 0.35, pz * 0.85); g.add(planta); g.userData.plantas.push(planta);
+        }
+        g.userData.luzInv = new THREE.PointLight(0xff66cc, 0.8, 6); g.userData.luzInv.position.y = 1.6; g.add(g.userData.luzInv);
+      } else if (l.id === "antena") {
+        const perfil = []; for (let i = 0; i <= 10; i++) { const x = i / 10 * 1.1; perfil.push(new THREE.Vector2(x, x * x * 0.6)); }
+        const plato = new THREE.Mesh(new THREE.LatheGeometry(perfil, 28), mat(0xf2f2f2, 0.3, 0.4, { side: THREE.DoubleSide }));
+        plato.rotation.x = -0.8; plato.position.y = 2.6; g.add(plato);
+        const mastil = cilindro(0.1, 0.16, 2.4, gris, 10); mastil.position.y = 1.2; g.add(mastil);
+        g.userData.plato = plato;
+      } else if (l.id === "hielo") {
+        for (let k = 0; k < 7; k++) {
+          const a = k * 0.9, r = 0.6 + (k % 3) * 0.6;
+          const bloque = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45 + (k % 2) * 0.25, 0), mat(0xdff6ff, 0.1, 0.25, { emissive: 0x10303a }));
+          bloque.position.set(Math.cos(a) * r, 0.1, Math.sin(a) * r); bloque.scale.y = 0.5; g.add(bloque);
+        }
+        const hoyo = new THREE.Mesh(new THREE.CircleGeometry(2.4, 24), mat(0x5a2a18, 0, 1)); hoyo.rotation.x = -Math.PI / 2; hoyo.position.y = 0.03; g.add(hoyo);
+      } else if (l.id === "rescate") {
+        const pista = new THREE.Mesh(new THREE.CircleGeometry(2.4, 32), mat(0x55575e, 0.3, 0.8)); pista.rotation.x = -Math.PI / 2; pista.position.y = 0.04; g.add(pista);
+        const anillo = new THREE.Mesh(new THREE.RingGeometry(2.4, 2.7, 40), new THREE.MeshBasicMaterial({ color: 0xffb703, side: THREE.DoubleSide })); anillo.rotation.x = -Math.PI / 2; anillo.position.y = 0.05; g.add(anillo);
+        g.userData.balizas = [];
+        for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b3b })); b.position.set(Math.cos(k * Math.PI / 2) * 2.9, 0.25, Math.sin(k * Math.PI / 2) * 2.9); g.add(b); g.userData.balizas.push(b); }
+      }
+      const cartel = crearCartel(l.nombre, "", l.color, false);
+      cartel.scale.set(3.6, 1.27, 1);
+      cartel.position.set(0, l.id === "base" ? 5.2 : (l.id === "antena" ? 4.4 : 3.4), 0); g.add(cartel);
+    });
+
+    // --- Nave de rescate: baja a la zona de aterrizaje y despega contigo ---
+    const lugarRescate = mundo.lugares.find(function (l) { return l.id === "rescate"; });
+    const nave = crearCohete(); nave.scale.setScalar(0.55);
+    const llama = new THREE.Mesh(new THREE.ConeGeometry(0.45, 2.6, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.85, fog: false }));
+    llama.rotation.x = Math.PI; llama.position.y = -1.3; nave.add(llama);
+    const luzNave = new THREE.PointLight(0xffa040, 0, 25); luzNave.position.y = -0.5; nave.add(luzNave);
+    nave.position.set(lugarRescate.x, 0, lugarRescate.z); nave.visible = false; escena.add(nave);
+    const colorTormenta = new THREE.Color(0x8a5a3a);
+
+    // --- Astronauta (con tu nombre en el parche) y su linterna ---
+    const astronauta = crearAstronauta(mundo.nombre || "TÚ");
+    escena.add(astronauta);
+    const linterna = new THREE.PointLight(0xfff2d0, 0, 14); escena.add(linterna);
+    const objetivo = new THREE.Vector3(), deseada = new THREE.Vector3();
+    camara.position.set(0, 9, 16);
+
+    actualizar = function (dt, t) {
+      mundo.actualizar(dt);
+      const s = mundo.estado(); if (!s) return;
+      const j = mundo.jugador, y = mundo.altura(j.x, j.z);
+      astronauta.position.set(j.x, y + Math.abs(Math.sin(j.paso * 3)) * 0.05 * j.andando, j.z);
+      astronauta.rotation.y = j.ang;
+      const vaiven = Math.sin(j.paso * 3) * 0.65 * j.andando;
+      astronauta.userData.piernaI.rotation.x = vaiven; astronauta.userData.piernaD.rotation.x = -vaiven;
+      astronauta.userData.brazoI.rotation.x = -vaiven * 0.8; astronauta.userData.brazoD.rotation.x = vaiven * 0.8;
+
+      // Sol, cielo y noche según la hora
+      const h = s.hora, luz = mundo.luzSolar(h);
+      const angSol = (h - D.amanecer) / (D.atardecer - D.amanecer) * Math.PI;     // 0 al amanecer, π al atardecer
+      sol.position.set(Math.cos(angSol) * 60 + j.x, Math.max(-20, Math.sin(angSol) * 50), -20 + j.z);
+      sol.target.position.set(j.x, 0, j.z); sol.target.updateMatrixWorld();
+      sol.intensity = 0.15 + luz * 1.15;
+      sol.color.setHSL(0.08, 0.5, 0.55 + luz * 0.4);
+      hemi.intensity = 0.12 + luz * 0.45;
+      const cercaHorizonte = luz > 0 && luz < 0.3 ? 1 - luz / 0.3 : 0;
+      if (luz > 0) cielo.copy(colorDia).lerp(colorAtardecer, cercaHorizonte * 0.85).lerp(colorNoche, Math.max(0, 0.35 - luz) * 1.2);
+      else cielo.copy(colorNoche);
+      // Tormenta de polvo: cielo café y neblina espesa
+      const tormenta = mundo.hayTormenta();
+      if (tormenta) { cielo.lerp(colorTormenta, 0.75).multiplyScalar(0.4 + luz * 0.6); sol.intensity *= 0.35; }
+      escena.fog.near += ((tormenta ? 6 : 35) - escena.fog.near) * Math.min(1, dt * 0.8);
+      escena.fog.far += ((tormenta ? 38 : 120) - escena.fog.far) * Math.min(1, dt * 0.8);
+      escena.fog.color.copy(cielo);
+      // Nave de rescate
+      const n = mundo.nave();
+      nave.visible = n.fase !== "ausente";
+      llama.visible = n.fase === "bajando" || n.fase === "despegando";
+      llama.scale.y = 0.8 + Math.random() * 0.4;
+      luzNave.intensity = llama.visible ? 2.5 : 0;
+      if (n.fase === "bajando") nave.position.y = (1 - n.progreso) * 70;
+      else if (n.fase === "en tierra") nave.position.y = 0;
+      else if (n.fase === "despegando") { nave.position.y = n.t * n.t * 4; astronauta.visible = n.t < 0.3; }
+      if (n.fase !== "despegando") astronauta.visible = true;
+      estrellas.material.opacity = Math.max(0, 1 - luz * 4);
+      discoSol.position.set(Math.cos(angSol) * 300 + j.x, Math.sin(angSol) * 250, -100 + j.z);
+      discoSol.visible = luz > 0;
+      const angF = t * 0.05;
+      fobos.position.set(Math.cos(angF) * 260 + j.x, 120 + Math.sin(angF) * 40, -200 + j.z); fobos.material.opacity = estrellas.material.opacity;
+      deimos.position.set(-180 + j.x, 160, -260 + j.z); deimos.material.opacity = estrellas.material.opacity;
+      // Linterna del casco de noche
+      linterna.intensity = luz > 0.15 ? 0 : 1.2;
+      linterna.position.set(j.x + Math.sin(j.ang) * 1.5, y + 2.4, j.z + Math.cos(j.ang) * 1.5);
+
+      // Estado de cada lugar
+      const og = objetos.oxigeno; if (og) og.userData.luz.material.color.set(s.oxigenoOn && s.rec.energia > 0.01 ? 0x3ddc84 : 0xff3b3b);
+      const pg = objetos.paneles; if (pg) pg.userData.paneles.forEach(function (p) { p.material.color.setRGB(0.11 + s.rec.polvo * 0.55, 0.24 + s.rec.polvo * 0.1, 0.56 - s.rec.polvo * 0.45); });
+      const ig = objetos.invernadero;
+      if (ig) {
+        const crec = s.cultivo.sembrado ? 0.15 + s.cultivo.progreso * 0.95 : 0.001;
+        ig.userData.plantas.forEach(function (p) { p.scale.setScalar(crec); });
+        ig.userData.luzInv.intensity = s.invernaderoOn && s.rec.energia > 0.01 ? 0.9 : 0;
+      }
+      if (objetos.antena) objetos.antena.userData.plato.rotation.z = Math.sin(t * 0.2) * 0.3;
+      if (objetos.rescate) objetos.rescate.userData.balizas.forEach(function (b, k) { b.visible = s.sol >= s.rescate ? Math.sin(t * 6 + k) > 0 : k === 0; });
+
+      // Cámara que sigue al astronauta desde atrás y arriba
+      deseada.set(j.x, y + 7.5, j.z + 10.5);
+      camara.position.lerp(deseada, Math.min(1, dt * 3));
+      objetivo.set(j.x, y + 1.2, j.z - 1);
+      camara.lookAt(objetivo);
+    };
+    montar(cont);
+    return true;
+  }
+
   function configurar(op) {
     calidadBaja = !!op.calidadBaja;
     if (renderer) renderer.setPixelRatio(calidadBaja ? 1 : Math.min(window.devicePixelRatio || 1, 2));
@@ -811,6 +1006,6 @@ const Vista3D = (function () {
   return {
     disponible: disponible, configurar: configurar, detener: detener,
     mostrarInicio: mostrarInicio, mostrarNave: mostrarNave, mostrarSimulacion: mostrarSimulacion, cinematica: cinematica,
-    mostrarHangar: mostrarHangar, retratoPaz: retratoPaz
+    mostrarHangar: mostrarHangar, mostrarMarte: mostrarMarte, retratoPaz: retratoPaz
   };
 })();
