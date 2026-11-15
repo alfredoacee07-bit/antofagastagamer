@@ -189,7 +189,7 @@
     else if (tipo === "hBorrar") { if (confirm("¿Borrar el progreso de la historia? No se puede deshacer.")) { try { localStorage.removeItem("spaceSimulator.historia"); } catch (x) { /* nada */ } J.redibujar(); avisar("Progreso de la historia borrado."); } }
     else if (tipo === "borrarTodo") {
       if (confirm("¿Borrar récords, flota, historia y opciones de SPACE SIMULATOR en este navegador? No se puede deshacer.")) {
-        ["spaceSimulator.records", "spaceSimulator.flota", "spaceSimulator.opciones", "spaceSimulator.historia", "misionCondor.records"].forEach(function (k) { try { localStorage.removeItem(k); } catch (x) { /* nada */ } });
+        ["spaceSimulator.records", "spaceSimulator.flota", "spaceSimulator.opciones", "spaceSimulator.historia", "spaceSimulator.evaluaciones", "spaceSimulator.tutorialVisto", "misionCondor.records"].forEach(function (k) { try { localStorage.removeItem(k); } catch (x) { /* nada */ } });
         avisar("Todo borrado. Recarga la página para empezar limpio.");
       }
     }

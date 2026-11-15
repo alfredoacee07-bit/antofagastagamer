@@ -9,6 +9,7 @@ Descarga el proyecto (botón verde **Code → Download ZIP**), descomprímelo y 
 - `index.html`: el juego.
 - `guia-docente.html`: guía para profesoras y profesores (objetivos, plan de clase, conceptos y rúbrica).
 - `prueba.html`: ambiente de prueba, con un panel de atajos para armar misiones, saltar fases y jugar cada desafío.
+- `index.html?demo=1`: abre directo el **modo demo** (recorrido guiado de 3 minutos para presentar).
 
 ## Qué incluye
 
@@ -21,6 +22,10 @@ Descarga el proyecto (botón verde **Code → Download ZIP**), descomprímelo y 
 - **Varado en Marte**: camina en 3D por el cráter Jezero y sobrevive hasta el rescate produciendo oxígeno, agua, comida y energía, con datos reales de MOXIE, RAD de Curiosity e InSight.
 - Misión completa, Misión rápida con contratos y reloj, Modo libre y Modo equipo (2 a 4 roles).
 - 7 desafíos (minijuegos), vista 3D, videos, música, efectos y la voz de la Ingeniera Paz.
+- **Datos NASA al centro**: página «Datos NASA» con los conjuntos de datos usados y un mapa de **156 incendios y erupciones reales de Chile (NASA EONET)**; los imprevistos de incendios y volcanes muestran casos reales.
+- **Ciencia a la vista**: «Ver los cálculos» (fórmulas con tus números) y la tabla «¿El juego es realista?».
+- **Prueba antes y después** para medir el aprendizaje, con resumen del curso para la profesora (se copia a una planilla).
+- **Accesibilidad**: texto grande, alto contraste y colores para daltonismo. Tutorial de 1 minuto y modo demo.
 - Informe final con explicaciones, ranking y preguntas de reflexión.
 
 ## Fuentes y créditos

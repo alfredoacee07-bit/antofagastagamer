@@ -65,6 +65,7 @@
     { nombre: "Asteroide Apofis", ids: ["apophis_esa", "apophis_nasa", "osiris_apex", "hera"] },
     { nombre: "Planificación del viaje", ids: ["horizons", "mars2020", "osirisrex"] },
     { nombre: "Cielo y orientación", ids: ["estrellas", "constelaciones"] },
+    { nombre: "Eventos naturales en Chile", ids: ["eonet"] },
     { nombre: "Varado en Marte", ids: ["moxie", "rad_curiosity", "insight", "eclss", "atardecer_marte"] }
   ];
 
@@ -94,7 +95,7 @@
      ================================================================= */
   const CLAVE_OPCIONES = "spaceSimulator.opciones";
   const opciones = Object.assign({
-    calidadBaja: false,
+    calidadBaja: false, tamanoTexto: "normal", altoContraste: false, daltonismo: false,
     volMusica: 0.6, volEfectos: 0.8, silencio: false, pista: "auto",   // sonido
     vozActiva: true, vozVelocidad: 1                                    // voz de Paz
   }, leerJSON(CLAVE_OPCIONES, {}));
@@ -105,6 +106,11 @@
   function aplicarOpciones(guardar) {
     if (guardar) { try { localStorage.setItem(CLAVE_OPCIONES, JSON.stringify(opciones)); } catch (e) { /* modo privado: no pasa nada */ } }
     document.body.classList.toggle("calidad-baja", opciones.calidadBaja);
+    // Accesibilidad: tamaño del texto, alto contraste y colores para daltonismo
+    document.body.classList.toggle("texto-grande", opciones.tamanoTexto === "grande");
+    document.body.classList.toggle("texto-muy-grande", opciones.tamanoTexto === "muyGrande");
+    document.body.classList.toggle("alto-contraste", !!opciones.altoContraste);
+    document.body.classList.toggle("daltonismo", !!opciones.daltonismo);
     Sonido.configurar({ volMusica: opciones.volMusica, volEfectos: opciones.volEfectos, silencio: opciones.silencio });
     Voz.configurar({ activa: opciones.vozActiva, velocidad: opciones.vozVelocidad });
     Vista3D.configurar({ calidadBaja: opciones.calidadBaja });
@@ -135,6 +141,11 @@
         '<div class="opcion-control"><label for="op-velocidad">Velocidad de la voz: <b id="op-velocidad-txt">' + fmt(opciones.vozVelocidad, 2) + '×</b></label>' + deslizador("op-velocidad", opciones.vozVelocidad, 0.6, 1.5, 0.05) + '</div>' +
         '<div class="botones-prueba"><button class="btn btn-mini" data-accion="probarVoz">' + ic("hablar") + ' Probar voz</button></div>'
         : '<p><small>Este navegador no tiene voz sintetizada. Los textos de Paz siguen apareciendo escritos.</small></p>') +
+      '<h3>' + ic("ojo") + ' Accesibilidad</h3>' +
+      '<div class="opcion-control"><label for="op-texto">Tamaño del texto</label><select id="op-texto" class="input-nombre">' +
+        [["normal", "Normal"], ["grande", "Grande"], ["muyGrande", "Muy grande"]].map(function (o) { return '<option value="' + o[0] + '"' + (opciones.tamanoTexto === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></div>' +
+      '<label class="opcion-fila"><input type="checkbox" id="op-contraste"' + (opciones.altoContraste ? " checked" : "") + '><span><b>Alto contraste</b><br><small>Fondo negro, texto blanco y bordes marcados.</small></span></label>' +
+      '<label class="opcion-fila"><input type="checkbox" id="op-daltonismo"' + (opciones.daltonismo ? " checked" : "") + '><span><b>Colores para daltonismo</b><br><small>Cambia verde y rojo por azul y naranjo, que se distinguen mejor.</small></span></label>' +
       '<h3>' + ic("satelite") + ' Rendimiento</h3>' +
       '<label class="opcion-fila"><input type="checkbox" id="op-calidad"' + (opciones.calidadBaja ? " checked" : "") + '>' +
       '<span><b>Calidad baja</b><br><small>Menos estrellas y animaciones. Úsala en computadores o tablets lentos.</small></span></label>' +
@@ -218,6 +229,55 @@
     if (!f) return "";
     return '<li><a href="' + f.url + '" target="_blank" rel="noopener"><b>' + seguro(f.titulo) + "</b></a> — " + seguro(f.org) +
       '<br><small>Dato usado: ' + seguro(f.usado) + "</small></li>";
+  }
+
+  /* ---------- DATOS DE LA NASA (datos/eonet.js y datos/trayectorias.js) ---------- */
+  const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  function fechaCorta(f) { return Number(f.slice(8, 10)) + " " + MESES_CORTOS[Number(f.slice(5, 7)) - 1] + " " + f.slice(0, 4); }
+  function chipNasa(texto) { return '<span class="chip-nasa" title="Dato real de la NASA">' + ic("satelite") + ' ' + (texto || "Dato NASA real") + '</span>'; }
+
+  // Un evento real de Chile al azar (incendio "i" o volcán "v") para mostrarlo en un imprevisto
+  function casoRealEonet(tipo) {
+    if (!DATOS.eonet) return "";
+    const lista = DATOS.eonet.eventos.filter(function (e) { return e[2] === tipo; });
+    const e = lista[Math.floor(Math.random() * lista.length)];
+    return '<div class="caso-real">' + chipNasa("Caso real · NASA EONET") + '<p><b>' + e[1] + '</b>, Chile · ' + fechaCorta(e[3]) + ' · ' + fmt(Math.abs(e[5]), 1) + '° S, ' + fmt(Math.abs(e[4]), 1) + '° O</p>' +
+      '<small>Entre 2015 y 2026, EONET registró en Chile ' + DATOS.eonet.eventos.filter(function (x) { return x[2] === "i"; }).length + ' incendios y ' +
+      DATOS.eonet.eventos.filter(function (x) { return x[2] === "v"; }).length + ' episodios volcánicos. ' + fuentesMini(["eonet"]) + '</small></div>';
+  }
+
+  // Mapa de Chile (por latitud y longitud) con los eventos reales de EONET
+  function mapaEonet() {
+    const W = 240, H = 560, lon0 = -76.5, lon1 = -66, lat0 = -17.5, lat1 = -56;
+    const x = function (lon) { return (lon - lon0) / (lon1 - lon0) * W; }, y = function (lat) { return (lat - lat0) / (lat1 - lat0) * H; };
+    const ciudades = [["Arica", -18.48, -70.31], ["Antofagasta", -23.65, -70.4], ["La Serena", -29.9, -71.25], ["Santiago", -33.45, -70.67], ["Concepción", -36.83, -73.05], ["Puerto Montt", -41.47, -72.94], ["Coyhaique", -45.57, -72.07], ["Punta Arenas", -53.16, -70.91]];
+    let svg = '<svg class="mapa-eonet" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Mapa de incendios y volcanes en Chile según NASA EONET">';
+    for (let lat = -20; lat >= -55; lat -= 5) svg += '<line x1="0" x2="' + W + '" y1="' + y(lat) + '" y2="' + y(lat) + '" class="guia"/><text x="2" y="' + (y(lat) - 2) + '" class="lat">' + Math.abs(lat) + '°S</text>';
+    ciudades.forEach(function (c) { svg += '<circle cx="' + x(c[2]) + '" cy="' + y(c[1]) + '" r="2.5" class="ciudad"/><text x="' + (x(c[2]) + 5) + '" y="' + (y(c[1]) + 3) + '" class="nom">' + c[0] + '</text>'; });
+    DATOS.eonet.eventos.forEach(function (e) {
+      svg += '<circle cx="' + x(e[4]).toFixed(1) + '" cy="' + y(e[5]).toFixed(1) + '" r="' + (e[2] === "v" ? 5 : 3.2) + '" class="' + (e[2] === "v" ? "volcan" : "incendio") + '"><title>' + e[1] + ' · ' + fechaCorta(e[3]) + '</title></circle>';
+    });
+    return svg + '</svg>';
+  }
+  function tarjetaEonet() {
+    if (!DATOS.eonet) return "";
+    const ev = DATOS.eonet.eventos, inc = ev.filter(function (e) { return e[2] === "i"; }), vol = ev.filter(function (e) { return e[2] === "v"; });
+    const ultimos = ev.slice(-6).reverse();
+    return '<div class="tarjeta eonet">' + mapaEonet() + '<div><h3>' + ic("alerta") + ' Lo que registró la NASA en Chile ' + chipNasa() + '</h3>' +
+      '<p>Entre 2015 y 2026, el catálogo EONET de la NASA registró <b>' + inc.length + ' incendios</b> (puntos naranjos) y <b>' + vol.length + ' episodios volcánicos</b> (puntos rojos) en Chile. Pasa el mouse sobre un punto para ver qué fue.</p>' +
+      '<h4>Los más recientes</h4><ul class="lista-eonet">' + ultimos.map(function (e) { return '<li><b>' + e[1] + '</b> · ' + fechaCorta(e[3]) + '</li>'; }).join("") + '</ul>' +
+      '<p><small>Por eso un satélite que vigile incendios y volcanes en Chile es tan útil. ' + fuentesMini(["eonet"]) + '</small></p></div></div>';
+  }
+
+  function abrirDatosNasa() {
+    abrirModal('<h2>' + ic("satelite") + ' Datos de la NASA que usa el juego</h2>' +
+      '<p>SPACE SIMULATOR no inventa sus números: se basa en datos públicos de la NASA, guardados en el juego para funcionar sin internet. Así se usan:</p>' +
+      '<div class="grid-datos-nasa">' + DATOS.datosNasa.map(function (d) {
+        return '<div class="tarjeta dato-nasa"><h3>' + ic(d.icono) + ' ' + d.nombre + '</h3><p>' + d.que + '</p>' +
+          '<p><b>En el juego:</b> ' + d.uso + '</p><p><small><b>Dónde verlo:</b> ' + d.donde + '</small></p>' + fuentesMini(d.fuentes) + '</div>';
+      }).join("") + '</div>' + tarjetaEonet() +
+      '<p class="aviso-legal">SPACE SIMULATOR no es un producto oficial de la NASA: solo usa sus datos públicos.</p>' +
+      '<div class="centro"><button class="btn btn-secundario" data-accion="realismo">' + ic("check") + ' ¿El juego es realista?</button> <button class="btn btn-secundario" data-accion="fuentes">' + ic("libro") + ' Todas las fuentes</button> <button class="btn btn-principal" data-accion="cerrarModal">Cerrar</button></div>', true);
   }
 
   function abrirFuentes(soloEscenario) {
@@ -310,7 +370,279 @@
         '<div class="recurso-cabeza"><span>' + ic(rec.icono) + ' <span class="nombre-largo">' + rec.nombre + '</span>' +
         '<span class="nombre-corto">' + (rec.corto || rec.nombre) + '</span></span>' + pq(rec.id) + '</div>' +
         '<div class="barra"><div class="barra-relleno"></div></div><div class="recurso-texto"></div></div>';
-    }).join("");
+    }).join("") + '<button class="btn btn-mini boton-calculos" data-accion="verCalculos" title="Ver las fórmulas con los números de tu diseño">' + ic("grafico") + ' Ver los cálculos</button>';
+  }
+
+  /* ---------- Prueba "antes y después" (datos/evaluacion.js): mide cuánto se aprendió ---------- */
+  const CLAVE_EVAL = "spaceSimulator.evaluaciones";
+  let evalActual = null;          // { nombre, tipo: "antes" | "despues", i, respuestas: [] }
+  function leerEvaluaciones() { const l = leerJSON(CLAVE_EVAL, []); return Array.isArray(l) ? l : []; }
+
+  function abrirEvaluacion() {
+    const nombre = estado.nombreEval || estado.nombreHistoria || estado.nombres[0] || "";
+    abrirModal('<h2>' + ic("lista") + ' Prueba «antes y después»</h2>' +
+      '<p>Son ' + DATOS.evaluacion.length + ' preguntas cortas. Respóndelas <b>antes de jugar</b> y otra vez <b>después de jugar</b>: así verás cuánto aprendiste. No importa equivocarse en la primera.</p>' +
+      '<label class="etiqueta-campo" for="nombre-eval">Tu nombre (para comparar tus dos pruebas)</label>' +
+      '<input id="nombre-eval" class="input-nombre" maxlength="24" placeholder="Ej.: Sofía R." value="' + seguro(nombre) + '">' +
+      '<div class="opciones-evento">' +
+        '<button class="opcion-evento destacada" data-accion="empezarEval" data-tipo="antes"><strong>' + ic("play") + ' Prueba inicial</strong><small>Antes de jugar: ¿qué sabes hoy?</small></button>' +
+        '<button class="opcion-evento" data-accion="empezarEval" data-tipo="despues"><strong>' + ic("trofeo") + ' Prueba final</strong><small>Después de jugar: compara con tu prueba inicial.</small></button>' +
+      '</div><div class="centro"><button class="btn btn-secundario" data-accion="resultadosCurso">' + ic("grupo") + ' Resultados del curso (para la profesora)</button> <button class="btn btn-secundario" data-accion="cerrarModal">Cerrar</button></div>', true);
+  }
+
+  function empezarEval(tipo) {
+    const campo = $("#nombre-eval");
+    const nombre = (campo && campo.value.trim()) || "Anónimo";
+    estado.nombreEval = nombre;
+    evalActual = { nombre: nombre, tipo: tipo, i: 0, respuestas: [] };
+    preguntaEval();
+  }
+
+  function preguntaEval() {
+    const q = DATOS.evaluacion[evalActual.i];
+    abrirModal('<div class="evento"><p class="etiqueta">' + (evalActual.tipo === "antes" ? "Prueba inicial" : "Prueba final") + ' · pregunta ' + (evalActual.i + 1) + ' de ' + DATOS.evaluacion.length + '</p>' +
+      '<div class="barra"><div class="barra-relleno relleno-verde" style="width:' + (evalActual.i / DATOS.evaluacion.length * 100) + '%"></div></div>' +
+      '<h2 class="pregunta-eval">' + q.pregunta + '</h2><div class="opciones-evento">' +
+      q.opciones.map(function (o, k) { return '<button class="opcion-evento" data-accion="respEval" data-i="' + k + '"><strong>' + String.fromCharCode(65 + k) + ') ' + o + '</strong></button>'; }).join("") +
+      '</div></div>', false, true);
+    Voz.decir(q.pregunta);
+  }
+
+  function responderEval(k) {
+    evalActual.respuestas.push(k);
+    evalActual.i++;
+    if (evalActual.i < DATOS.evaluacion.length) { preguntaEval(); return; }
+    // Terminó: guardar y mostrar el resultado
+    const correctas = evalActual.respuestas.filter(function (r, i) { return r === DATOS.evaluacion[i].correcta; }).length, total = DATOS.evaluacion.length;
+    const lista = leerEvaluaciones();
+    lista.push({ nombre: evalActual.nombre, tipo: evalActual.tipo, puntaje: correctas, total: total, fecha: new Date().toLocaleString("es-CL") });
+    try { localStorage.setItem(CLAVE_EVAL, JSON.stringify(lista.slice(-500))); } catch (e) { /* modo privado */ }
+    let html = '<div class="evento"><div class="icono-grande-svg tono-bien">' + ic(evalActual.tipo === "antes" ? "lista" : "trofeo") + '</div><h2>' + correctas + ' de ' + total + ' correctas</h2>';
+    if (evalActual.tipo === "antes") {
+      html += '<p>¡Listo, ' + seguro(evalActual.nombre) + '! Guardamos tu prueba inicial. Ahora <b>juega</b> y, al terminar, haz la <b>prueba final</b> para ver cuánto aprendiste. (Las respuestas correctas las verás al final.)</p>';
+    } else {
+      const antes = lista.filter(function (x) { return x.nombre === evalActual.nombre && x.tipo === "antes"; }).pop();
+      if (antes) {
+        const dif = correctas - antes.puntaje;
+        html += '<div class="mejora ' + (dif > 0 ? "sube" : "") + '"><span>Antes: <b>' + antes.puntaje + '/' + total + '</b></span>' + ic("flecha") + '<span>Después: <b>' + correctas + '/' + total + '</b></span><span class="mejora-dif">' + (dif > 0 ? "+" + dif + " ¡Aprendiste!" : (dif === 0 ? "Igual" : dif)) + '</span></div>';
+      } else html += '<p><small>No encontramos una prueba inicial con el nombre «' + seguro(evalActual.nombre) + '».</small></p>';
+      html += '<h3>Las respuestas</h3><ol class="respuestas-eval">' + DATOS.evaluacion.map(function (q, i) {
+        const bien = evalActual.respuestas[i] === q.correcta;
+        return '<li class="' + (bien ? "bien" : "mal") + '">' + ic(bien ? "check" : "cruz") + ' <b>' + q.pregunta + '</b><br>Correcta: ' + q.opciones[q.correcta] + '. <small>' + q.explicacion + ' ' + fuentesMini(q.fuentes) + '</small></li>';
+      }).join("") + '</ol>';
+    }
+    html += '<div class="centro"><button class="btn btn-principal" data-accion="cerrarModal">Cerrar</button></div></div>';
+    evalActual = null;
+    abrirModal(html, true);
+    Sonido.efecto("exito");
+  }
+
+  // Resumen para la profesora: la última prueba inicial y final de cada estudiante
+  function resultadosCurso() {
+    const lista = leerEvaluaciones(), porNombre = {};
+    lista.forEach(function (x) { (porNombre[x.nombre] = porNombre[x.nombre] || {})[x.tipo] = x; });
+    const nombres = Object.keys(porNombre).sort();
+    const conAmbas = nombres.filter(function (n) { return porNombre[n].antes && porNombre[n].despues; });
+    const prom = function (tipo, ns) { return ns.length ? ns.reduce(function (t, n) { return t + porNombre[n][tipo].puntaje; }, 0) / ns.length : 0; };
+    const total = DATOS.evaluacion.length;
+    let html = '<h2>' + ic("grupo") + ' Resultados del curso</h2><p>Pruebas guardadas en <b>este dispositivo</b>. ' + nombres.length + ' estudiante(s), ' + conAmbas.length + ' con prueba inicial y final.</p>';
+    if (conAmbas.length) html += '<div class="mejora sube"><span>Promedio antes: <b>' + fmt(prom("antes", conAmbas), 1) + '/' + total + '</b></span>' + ic("flecha") + '<span>Promedio después: <b>' + fmt(prom("despues", conAmbas), 1) + '/' + total + '</b></span>' +
+      '<span class="mejora-dif">' + (prom("despues", conAmbas) - prom("antes", conAmbas) >= 0 ? "+" : "") + fmt(prom("despues", conAmbas) - prom("antes", conAmbas), 1) + '</span></div>';
+    html += nombres.length ? '<div class="tabla-realismo-caja"><table class="tabla-realismo"><thead><tr><th>Estudiante</th><th>Antes</th><th>Después</th><th>Mejora</th></tr></thead><tbody>' + nombres.map(function (n) {
+      const a = porNombre[n].antes, d = porNombre[n].despues;
+      return '<tr><td>' + seguro(n) + '</td><td>' + (a ? a.puntaje + '/' + a.total : '—') + '</td><td>' + (d ? d.puntaje + '/' + d.total : '—') + '</td><td class="' + (a && d && d.puntaje > a.puntaje ? "igual" : "") + '">' + (a && d ? (d.puntaje - a.puntaje >= 0 ? "+" : "") + (d.puntaje - a.puntaje) : '—') + '</td></tr>';
+    }).join("") + '</tbody></table></div>' : '<p>Todavía no hay pruebas guardadas.</p>';
+    html += '<div class="centro"><button class="btn btn-secundario" data-accion="copiarResultados">' + ic("documento") + ' Copiar para planilla</button> <button class="btn btn-secundario" data-accion="borrarResultados">Borrar resultados</button> <button class="btn btn-principal" data-accion="cerrarModal">Cerrar</button></div>' +
+      '<p class="centro"><small id="aviso-copia">Se copia como tabla: pégala en Excel o Google Sheets.</small></p>';
+    abrirModal(html, true);
+  }
+  function copiarResultados() {
+    const lista = leerEvaluaciones();
+    const tsv = "Estudiante\tPrueba\tCorrectas\tTotal\tFecha\n" + lista.map(function (x) { return [x.nombre, x.tipo === "antes" ? "inicial" : "final", x.puntaje, x.total, x.fecha].join("\t"); }).join("\n");
+    const listo = function () { const a = $("#aviso-copia"); if (a) a.textContent = "¡Copiado! Pégalo en una planilla."; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(tsv).then(listo, function () { copiarAlternativo(tsv); listo(); });
+    else { copiarAlternativo(tsv); listo(); }
+  }
+  function copiarAlternativo(texto) {
+    const t = document.createElement("textarea"); t.value = texto; document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } catch (e) { /* nada */ }
+    t.remove();
+  }
+  // Tarjeta que invita a la prueba final (al terminar una misión)
+  function tarjetaPruebaFinal() {
+    return '<div class="tarjeta invitar-prueba"><p>' + ic("lista") + ' <b>¿Hiciste la prueba inicial?</b> Haz ahora la prueba final y mira cuánto aprendiste.</p><button class="btn btn-secundario" data-accion="evaluacion">Prueba «antes y después»</button></div>';
+  }
+
+  /* =================================================================
+     MODO DEMO (para presentar al jurado): un recorrido guiado de ~3 minutos.
+     Cada paso muestra algo del juego y Paz lo explica en voz alta.
+     Se abre con el botón "Demo (3 min)" del inicio o con index.html?demo=1
+     ================================================================= */
+  let demo = null;            // { paso, temporizador, pausa, mover }
+  // Arma una misión de ejemplo bien diseñada (solo para la demo)
+  function armarDemo(escId) {
+    const esc = DATOS.escenarios.find(function (e) { return e.id === escId; });
+    const orb = esc.orbitas.find(function (o) { return o.id === esc.orbitaRecomendada; });
+    Object.assign(estado, { modoJuego: "libre", modo: "individual", contrato: null, historia: null, escenario: esc.id, orbita: orb.id, resultado: null, faseMax: 5,
+      instrumentos: esc.instrumentosRecomendados.slice(), cohete: "propio", coheteDiseno: Cohetes.disenoPorDefecto() });
+    DATOS.componentes.forEach(function (c) { estado.componentes[c.id] = c.id === "propulsion" ? (orb.deltaVLlegada > 0 ? "basica" : "ninguna") : "avanzada"; });
+    estado.trayectoria = Trayectorias.config(esc.id) ? { tipo: "directa", mes: Trayectorias.usaFecha(esc.id) ? Trayectorias.mejorMes(esc.id, "directa", esc) : null } : null;
+  }
+  const PASOS_DEMO = [
+    { seg: 20, titulo: "SPACE SIMULATOR", texto: "Un juego educativo en español donde estudiantes diseñan, lanzan y dirigen misiones espaciales. Cada decisión de ingeniería cambia todas las demás, y todo se basa en datos reales de la NASA.",
+      hacer: function () { estado.vistaInicio = "menu"; irAFase(0); } },
+    { seg: 26, titulo: "Datos reales de la NASA", texto: "Usamos datos públicos de la NASA guardados en el juego para funcionar sin internet: por ejemplo, 156 incendios y erupciones reales de Chile del catálogo EONET, y las posiciones de los planetas de JPL Horizons.",
+      hacer: function () { abrirDatosNasa(); setTimeout(function () { const t = document.querySelector("#modal .tarjeta.eonet"); if (t) t.scrollIntoView({ behavior: "smooth" }); }, 4000); } },
+    { seg: 24, titulo: "Diseñar con equilibrio", texto: "El estudiante elige las piezas de su nave. El panel de recursos muestra en vivo la masa, la energía, el presupuesto y los datos. Si algo se pone en rojo, la misión fallará.",
+      hacer: function () { armarDemo("marte"); irAFase(2); } },
+    { seg: 28, titulo: "La ventana a Marte", texto: "Con las posiciones reales de la Tierra y Marte, el planificador muestra cuándo conviene lanzar. Fuera de la ventana, el cohete lleva la mitad de la carga. La mejor fecha es enero de 2029.",
+      hacer: function () {
+        armarDemo("marte"); estado.trayectoria.mes = "2029-03"; irAFase(4);
+        setTimeout(function () { if (demo && estado.fase === 4) { estado.trayectoria.mes = "2029-01"; cambioDiseno(); } }, 9000);
+        setTimeout(function () { const p = document.querySelector(".planificador"); if (p) p.scrollIntoView({ behavior: "smooth" }); }, 600);
+      } },
+    { seg: 22, titulo: "Ciencia a la vista", texto: "Nada es una caja negra: «Ver los cálculos» muestra la ecuación del cohete y las demás fórmulas con los números del diseño. Y una tabla compara el juego con la realidad.",
+      hacer: function () { armarDemo("marte"); irAFase(4); verCalculos(); } },
+    { seg: 34, titulo: "Varado en Marte", texto: "En el modo supervivencia, el estudiante camina en 3D por el cráter Jezero y produce oxígeno, agua, comida y energía hasta el rescate, con datos de MOXIE y de Curiosity.",
+      hacer: function () {
+        cerrarModal(); estado.historia = null; estado.nombreMarte = "DEMO"; estado.modoJuego = "marte"; irMarte(true); colaPaz = [];
+        // El astronauta camina solo hacia el depósito de hielo
+        const M = Supervivencia.mundo, destino = { x: 30, z: 23 };
+        demo.mover = setInterval(function () {
+          const j = M.jugador, dx = destino.x - j.x, dz = destino.z - j.z, d = Math.hypot(dx, dz);
+          if (d < 0.5) return;
+          j.x += dx / d * 0.18; j.z += dz / d * 0.18; j.ang = Math.atan2(dx, dz); j.andando = 1; j.paso += 0.4;
+        }, 40);
+      } },
+    { seg: 24, titulo: "Aprender y medirlo", texto: "El modo historia cuenta una aventura en cinco capítulos, desde el primer satélite hasta Marte. Y la prueba «antes y después» mide cuánto aprendió cada estudiante, con un resumen para la profesora.",
+      hacer: function () { pararMovimientoDemo(); Supervivencia.detener(); estado.vistaInicio = "historia"; irAFase(0); estado.vistaInicio = "historia"; dibujarFase(); } }
+  ];
+  function pararMovimientoDemo() { if (demo && demo.mover) { clearInterval(demo.mover); demo.mover = null; } }
+  function iniciarDemo() { detenerDemo(); demo = { paso: -1 }; document.body.classList.add("en-demo"); siguientePasoDemo(); }
+  function siguientePasoDemo() {
+    if (!demo) return;
+    clearTimeout(demo.temporizador); pararMovimientoDemo();
+    demo.paso++;
+    if (demo.paso >= PASOS_DEMO.length) { finDemo(); return; }
+    const p = PASOS_DEMO[demo.paso];
+    cerrarModal(); colaPaz = []; $("#paz").classList.add("oculto");
+    try { p.hacer(); } catch (e) { /* si algo falla, la demo sigue */ }
+    colaPaz = []; $("#paz").classList.add("oculto");          // en la demo habla solo la narración
+    dibujarBarraDemo();
+    Voz.detener(); Voz.decir(p.titulo + ". " + p.texto);
+    demo.temporizador = setTimeout(siguientePasoDemo, p.seg * 1000);
+  }
+  function dibujarBarraDemo() {
+    let b = $("#barra-demo");
+    if (!b) { b = document.createElement("div"); b.id = "barra-demo"; b.className = "barra-demo"; document.body.appendChild(b); }
+    const p = PASOS_DEMO[demo.paso];
+    b.innerHTML = '<div class="demo-avatar">' + avatarPaz() + '</div><div class="demo-texto"><small>Modo demo · ' + (demo.paso + 1) + ' de ' + PASOS_DEMO.length + '</small><b>' + p.titulo + '</b><p>' + p.texto + '</p>' +
+      '<div class="demo-progreso"><span style="animation-duration:' + p.seg + 's"></span></div></div>' +
+      '<div class="demo-botones"><button class="btn btn-mini" data-accion="demoSiguiente" title="Siguiente paso">' + ic("flecha") + '</button><button class="btn btn-mini" data-accion="demoSalir" title="Salir de la demo">' + ic("cruz") + '</button></div>';
+  }
+  function finDemo() {
+    detenerDemo();
+    estado.vistaInicio = "menu"; irAFase(0);
+    abrirModal('<div class="evento"><div class="icono-grande-svg tono-bien">' + ic("trofeo") + '</div><h2>¡Gracias por ver SPACE SIMULATOR!</h2>' +
+      '<p>Funciona sin internet, en computadores y tablets, y todo está en español. Ahora puedes jugarlo tú.</p>' +
+      '<div class="centro"><button class="btn btn-principal" data-accion="menuModos">' + ic("play") + ' Jugar</button> <button class="btn btn-secundario" data-accion="demo">' + ic("reiniciar") + ' Ver la demo otra vez</button></div></div>', true);
+    Voz.decir("¡Gracias por ver SPACE SIMULATOR!");
+  }
+  function detenerDemo() {
+    if (!demo) return;
+    clearTimeout(demo.temporizador); pararMovimientoDemo();
+    demo = null;
+    document.body.classList.remove("en-demo");
+    const b = $("#barra-demo"); if (b) b.remove();
+    Voz.detener();
+  }
+
+  /* ---------- Tutorial de 1 minuto (aparece solo la primera vez que se pulsa "Jugar") ---------- */
+  const CLAVE_TUTORIAL = "spaceSimulator.tutorialVisto";
+  const PASOS_TUTORIAL = [
+    { icono: "play", titulo: "1. Elige cómo jugar", texto: "Modo historia si quieres una aventura, Misión completa para diseñar con calma, Misión rápida si hay poco tiempo, o Varado en Marte para sobrevivir en 3D." },
+    { icono: "satelite", titulo: "2. Diseña y mira el panel", texto: "Cada pieza que eliges cambia las barras de masa, energía, presupuesto, datos, comunicaciones y tiempo. Si una barra se pone ROJA, algo no va a funcionar: ¡cámbialo antes de lanzar!" },
+    { icono: "pregunta", titulo: "3. Pregunta «¿Por qué?»", texto: "Toca los botones «?» para entender cada número. La Ingeniera Paz (abajo a la derecha) te explica lo importante y te da pistas." },
+    { icono: "grafico", titulo: "4. Datos reales de la NASA", texto: "Los planetas, los incendios de Chile, el oxígeno de Marte… vienen de datos reales de la NASA. Botón «Datos NASA» arriba, y «Ver los cálculos» en el panel para ver las fórmulas con tus números." },
+    { icono: "trofeo", titulo: "5. Lanza, aprende y mejora", texto: "Después de la misión, el informe te dice qué falló y por qué. Los ingenieros de verdad aprenden así: prueba, mira el resultado y mejora tu diseño." }
+  ];
+  function abrirTutorial(paso) {
+    const p = PASOS_TUTORIAL[paso], ultimo = paso === PASOS_TUTORIAL.length - 1;
+    abrirModal('<div class="tutorial"><div class="icono-grande-svg">' + ic(p.icono) + '</div><p class="etiqueta">Cómo se juega · ' + (paso + 1) + ' de ' + PASOS_TUTORIAL.length + '</p>' +
+      '<h2>' + p.titulo + '</h2><p class="tutorial-texto">' + p.texto + '</p>' +
+      '<div class="tutorial-puntos">' + PASOS_TUTORIAL.map(function (x, k) { return '<span class="' + (k === paso ? "activo" : "") + '"></span>'; }).join("") + '</div>' +
+      '<div class="centro">' + (paso > 0 ? '<button class="btn btn-secundario" data-accion="tutorial" data-paso="' + (paso - 1) + '">' + ic("flechaIzq") + ' Atrás</button> ' : '<button class="btn btn-secundario" data-accion="tutorialFin">Saltar</button> ') +
+      (ultimo ? '<button class="btn btn-principal" data-accion="tutorialFin">¡A jugar! ' + ic("play") + '</button>' : '<button class="btn btn-principal" data-accion="tutorial" data-paso="' + (paso + 1) + '">Siguiente ' + ic("flecha") + '</button>') +
+      '</div></div>', false, true);
+    Voz.decir(p.titulo + ". " + p.texto);
+  }
+
+  /* ---------- "Ver los cálculos": las fórmulas con los números de tu diseño ---------- */
+  function verCalculos() {
+    const r = Motor.calcularRecursos(estado), cfg = DATOS.config;
+    const f = function (n, d) { return fmt(n, d === undefined ? 1 : d); };
+    const bloque = function (titulo, formula, cuenta, conclusion, clave) {
+      return '<div class="tarjeta calculo"><h3>' + titulo + (clave ? ' ' + pq(clave) : '') + '</h3><p class="formula">' + formula + '</p><p class="cuenta">' + cuenta + '</p><p>' + conclusion + '</p></div>';
+    };
+    let html = '<h2>' + ic("grafico") + ' Los cálculos de tu misión</h2><p>Estas son las mismas fórmulas que usa el juego, con los números de <b>tu</b> diseño. Puedes comprobarlas con una calculadora.</p>';
+    // 1. Ecuación del cohete (combustible de la nave)
+    if (r.deltaV > 0 && r.motor) {
+      html += bloque("Combustible de la nave (ecuación del cohete)", "combustible = masa seca × (e<sup>Δv ÷ (Isp × 9,81)</sup> − 1)",
+        f(r.masaCombustible, 0) + " kg = " + f(r.masaSeca, 0) + " kg × (e<sup>" + f(r.deltaV * 1000, 0) + " ÷ (" + r.motor.isp + " × 9,81)</sup> − 1)",
+        "Δv = " + f(r.deltaV, 2) + " km/s para frenar y mantener la órbita (con " + Math.round((cfg.margenDeltaV - 1) * 100) + "% de margen). Un motor con más Isp necesita menos combustible.", "ecuacionCohete");
+    } else html += bloque("Combustible de la nave", "Esta órbita no necesita frenar al llegar.", "Δv de llegada = 0 km/s → 0 kg de combustible.", "Si eliges una órbita que necesite motor, aquí verás la ecuación del cohete.", "ecuacionCohete");
+    // 2. Energía
+    html += bloque("Energía", "generación promedio = paneles × luz solar del destino × (1 − fracción en sombra)",
+      f(r.genProm, 0) + " W = " + f(r.piezas.paneles ? r.piezas.paneles.generacion : 0, 0) + " W × " + f(r.escenario.factorSolar, 2) + " × (1 − " + f(r.orbita.eclipseFraccion, 2) + ")",
+      "La nave consume " + f(r.consumo, 0) + " W. " + (r.genProm >= r.consumo ? "Alcanza." : "No alcanza: faltan " + f(r.consumo - r.genProm, 0) + " W.") + " En Marte llega el 43% de la luz: 1 ÷ 1,52² (ley del inverso del cuadrado).", "generacion");
+    // 3. Batería en la sombra
+    if (r.capBat) html += bloque("Batería en la sombra", "descarga = consumo × horas en sombra ÷ capacidad",
+      f(r.descarga * 100, 0) + "% = " + f(r.consumo, 0) + " W × " + f(r.orbita.eclipseHoras, 2) + " h ÷ " + f(r.capBat, 0) + " Wh",
+      "Límite seguro: " + Math.round(r.limiteDescarga * 100) + "%. Si se descarga más, la batería dura menos años.", "capacidadBateria");
+    // 4. Datos
+    html += bloque("Datos y comunicaciones", "datos enviados por día = velocidad de la antena × factor de distancia × minutos de contacto × 60 ÷ 8.000",
+      f(r.bajada, 2) + " GB/día = " + (r.piezas.antena ? r.piezas.antena.velocidadMbps : 0) + " Mbps × " + f(r.orbita.factorDistancia, 4) + " × " + r.orbita.minutosContactoDia + " min × 60 ÷ 8.000",
+      "Los instrumentos generan " + f(r.gbDia, 2) + " GB/día. " + (r.bajada >= r.gbDia ? "La antena alcanza a enviarlos." : "Se perderá el " + Math.round((1 - r.bajada / r.gbDia) * 100) + "% de los datos."), "comunicaciones");
+    // 5. Cohete: masa contra capacidad
+    if (r.cohete) html += bloque("¿Cabe en el cohete?", "masa de la nave ≤ capacidad del cohete hacia el destino",
+      f(r.masa, 0) + " kg " + (r.masa <= r.capacidadCohete ? "≤ " : "> ") + f(r.capacidadCohete, 0) + " kg (" + r.cohete.nombre + ")",
+      r.viaje && r.viaje.mes && Math.abs(r.viaje.extra) >= 0.005 ? "La fecha elegida pide " + f(r.viaje.extra, 2) + " km/s extra: capacidad × e<sup>−extra ÷ 1,3</sup> = ×" + f(r.viaje.factorCapacidad, 2) + "." : "Lanzando en la fecha ideal, el cohete lleva su capacidad completa.", "capacidadCohete");
+    // 6. Ventana de lanzamiento
+    if (r.viaje && r.viaje.fase !== undefined) html += bloque("Ventana de lanzamiento", "energía extra = 0,001 × (ángulo de Marte − 44°)²",
+      f(r.viaje.extra - (r.viaje.tipoInfo.extraLanzamiento || 0), 2) + " km/s = 0,001 × (" + f(r.viaje.fase, 0) + "° − 44°)²",
+      "El ángulo sale de las posiciones reales de JPL Horizons para " + Trayectorias.textoMes(r.viaje.salida) + ". " + chipNasa("JPL Horizons"), "ventana");
+    // 7. Cohete propio: delta-v por etapa
+    if (r.cohete && r.cohete.propio) {
+      const a = Cohetes.analizar(estado.coheteDiseno, r.masa);
+      html += bloque("Tu cohete por etapas", "Δv de cada etapa = Isp × 9,81 × ln(masa al encender ÷ masa al apagar)",
+        a.etapas.map(function (e, k) { return "Etapa " + (k + 1) + ": " + f(e.deltaV, 2) + " km/s = " + f(e.isp, 0) + " × 9,81 × ln(" + f(e.masaInicial / 1000, 1) + " t ÷ " + f(e.masaFinal / 1000, 1) + " t)"; }).join("<br>"),
+        "Total: " + f(a.deltaV, 2) + " km/s. Necesitas " + f(DATOS.deltaVDestino[r.orbita.destinoCohete] + (r.viaje && r.viaje.mes ? r.viaje.extra : 0), 2) + " km/s para este destino.", "deltaVCohete");
+    }
+    abrirModal(html + '<div class="centro"><button class="btn btn-secundario" data-accion="realismo">' + ic("check") + ' ¿El juego es realista?</button> <button class="btn btn-principal" data-accion="cerrarModal">Cerrar</button></div>', true);
+  }
+
+  /* ---------- "¿El juego es realista?": números del juego al lado de los reales ---------- */
+  function abrirRealismo() {
+    const coh = function (id) { return DATOS.cohetes.find(function (c) { return c.id === id; }); };
+    const sv = DATOS.supervivencia;
+    const filas = [
+      ["Capacidad del Falcon 9 a órbita baja", fmt(coh("falcon9").capacidad.leo, 0) + " kg", "22.800 kg desechable · ~17.500 kg recuperando la etapa", "spacex", "Igual (versión reutilizable)"],
+      ["Capacidad del Electron a órbita baja", fmt(coh("electron").capacidad.leo, 0) + " kg", "~300 kg", "electron", "Igual"],
+      ["Cohete propio tipo Falcon 9 (calculado por etapas)", fmt(Cohetes.cargaMaxima({ etapas: [{ motor: "mediano", cantidad: 9, tanque: "gigante" }, { motor: "mediano", cantidad: 1, tanque: "grande" }] }, "leo"), 0) + " kg", "22.800 kg (desechable)", "spacex", "Parecido (el juego simplifica la aerodinámica)"],
+      ["Ventanas de lanzamiento a Marte", "dic 2028–ene 2029 y feb–mar 2031", "Cada ~26 meses; posiciones de JPL Horizons", "horizons", "Mismos datos"],
+      ["Paso cercano de Apofis", fmt(DATOS.pasoApofis.distanciaKm, 0) + " km del centro de la Tierra, 13-04-2029", "~32.000 km sobre la superficie, 13-04-2029", "horizons", "Mismos datos"],
+      ["Oxígeno que respira una persona", sv.consumoPorSol.oxigeno + " kg por día", "~0,84 kg por día", "eclss", "Igual"],
+      ["Radiación en la superficie de Marte", sv.radiacion.superficiePorSol + " mSv por sol", "~0,67 mSv por día (RAD de Curiosity)", "rad_curiosity", "Igual"],
+      ["Duración de un sol", "24 h 39 min", "24 h 39 min 35 s", "mars_facts", "Igual"],
+      ["Luz solar en Marte", "43% de la de la Tierra", "1 ÷ 1,52² ≈ 43%", "mars_facts", "Igual"],
+      ["Oxígeno de MOXIE", "1,1 kg por sol (generador grande)", "hasta ~12 g por hora (~0,3 kg por sol) con el aparato chico", "moxie", "Agrandado: tu generador es ~4 veces MOXIE"],
+      ["Polvo sobre los paneles en Marte", Math.round(sv.polvoPorSol * 100 * 10) / 10 + "% por sol", "~0,2–0,3% por sol", "insight", "Acelerado para que se note jugando"],
+      ["Eventos naturales en Chile", DATOS.eonet ? DATOS.eonet.eventos.length + " incendios y erupciones" : "—", "Registro de NASA EONET 2015–2026", "eonet", "Mismos datos"]
+    ];
+    abrirModal('<h2>' + ic("check") + ' ¿El juego es realista?</h2><p>Comparamos los números del juego con los reales. Cuando el juego simplifica o acelera algo para que se pueda jugar, lo decimos.</p>' +
+      '<div class="tabla-realismo-caja"><table class="tabla-realismo"><thead><tr><th>Qué</th><th>En el juego</th><th>En la realidad</th><th>Comparación</th></tr></thead><tbody>' +
+      filas.map(function (x) { return '<tr><td>' + x[0] + '</td><td><b>' + x[1] + '</b></td><td>' + x[2] + ' ' + fuentesMini([x[3]]) + '</td><td class="' + (/Igual|Mismos/.test(x[4]) ? "igual" : "aprox") + '">' + x[4] + '</td></tr>'; }).join("") +
+      '</tbody></table></div><div class="centro"><button class="btn btn-principal" data-accion="cerrarModal">Cerrar</button></div>', true);
   }
 
   function actualizarPanel() {
@@ -472,6 +804,10 @@
         '<button class="btn-menu principal" data-accion="menuModos">' + ic("play") + '<span>Jugar</span></button>' +
         '<button class="btn-menu" data-accion="menuEquipo">' + ic("grupo") + '<span>Modo equipo</span></button>' +
         '<button class="btn-menu" data-accion="opciones">' + ic("engranaje") + '<span>Opciones</span></button>' +
+        '<button class="btn-menu" data-accion="datosNasa">' + ic("satelite") + '<span>Datos NASA</span></button>' +
+        '<button class="btn-menu" data-accion="demo">' + ic("play") + '<span>Demo (3 min)</span></button>' +
+        '<button class="btn-menu" data-accion="tutorial">' + ic("pregunta") + '<span>Cómo se juega</span></button>' +
+        '<button class="btn-menu" data-accion="evaluacion">' + ic("lista") + '<span>Prueba antes y después</span></button>' +
         '<button class="btn-menu" data-accion="creditos">' + ic("info") + '<span>Créditos</span></button>' +
       '</div>' +
       '<div class="menu-secundario">' +
@@ -789,6 +1125,7 @@
       '<div class="estrellas centro">' + estrellasHtml(res.estrellas) + '</div>' +
       (res.aprendido.length ? '<div class="tarjeta"><h3>' + ic("idea") + ' Lo que aprendiste de Marte</h3><ul class="lista-aprendido">' +
         res.aprendido.map(function (d) { return '<li><b>' + d.titulo + ':</b> ' + d.texto + ' ' + fuentesMini(d.fuentes) + '</li>'; }).join("") + '</ul></div>' : '') +
+      tarjetaPruebaFinal() +
       '<div class="tarjeta" id="record-marte"><h3>' + ic("medalla") + ' Guardar en el ranking</h3><div class="fila-record"><input id="nombre-record-marte" class="input-nombre" maxlength="24" placeholder="Tu nombre" value="' + seguro(estado.nombreMarte || "") + '">' +
         '<button class="btn btn-principal" data-accion="guardarRecordMarte">Guardar</button></div>' + tablaRecords({ modo: "marte", dificultad: res.dificultad, titulo: "Sobrevivientes de Marte" }) + '</div>' +
       '<div class="centro"><button class="btn btn-principal" data-accion="marteOtraVez">' + ic("reiniciar") + ' Jugar otra vez</button> <button class="btn btn-secundario" data-accion="marteSalir">Salir al menú</button></div></div>', false, true);
@@ -904,6 +1241,7 @@
       '<div class="cifra"><span class="cifra-etiqueta">' + ic("trofeo") + ' Recompensa</span><span class="cifra-valor">' + c.recompensa.porObjetivo + ' pts</span><small>por objetivo · +' + c.recompensa.bonoCompleto + ' si cumples todos</small></div>' +
       '<div class="cifra"><span class="cifra-etiqueta">' + ic("planeta") + ' Misión</span><span class="cifra-valor chico">' + esc.nombre + '</span><small>' + esc.destino + '</small></div>' +
       '</div><div class="centro"><button class="btn btn-secundario" data-accion="fuentesEscenario">' + ic("libro") + ' ¿De dónde salen estos datos?</button></div></div>';
+    if (esc.id === "chile" || esc.id === "incendios") html += tarjetaEonet();
     return html;
   }
 
@@ -933,6 +1271,7 @@
         '<div class="cifra"><span class="cifra-etiqueta">' + ic("mapa") + ' Zona a estudiar</span><span class="cifra-valor chico">' + esc.zona + '</span>' +
         (esc.propulsionObligatoria ? '<small>' + ic("llama") + ' Necesita motor propio</small>' : '<small>' + ic("sol") + ' Luz solar: ' + Math.round(esc.factorSolar * 100) + '%</small>') + '</div>' +
         '</div><div class="centro"><button class="btn btn-secundario" data-accion="fuentesEscenario">' + ic("libro") + ' ¿De dónde salen estos datos?</button></div></div>';
+      if (esc.id === "chile" || esc.id === "incendios") html += tarjetaEonet();
     }
     return html;
   }
@@ -1080,7 +1419,7 @@
     const c = Trayectorias.config(esc.id);
     const sel = estado.trayectoria || { tipo: "directa", mes: null };
     const v = r.viaje;
-    let html = '<h3 class="subtitulo">2. Planifica el viaje ' + pq("ventana") + '</h3><div class="tarjeta planificador">';
+    let html = '<h3 class="subtitulo">2. Planifica el viaje ' + pq("ventana") + ' ' + chipNasa("Posiciones reales · NASA JPL Horizons") + '</h3><div class="tarjeta planificador">';
 
     // Tipo de viaje
     html += '<div class="cc-fila"><span>Tipo de viaje</span><div class="cc-chips">' + c.tipos.map(function (id) {
@@ -1563,6 +1902,7 @@
     if (estado.modo === "equipo") quien = '<div class="decide">Decide: ' + chipRol(ev.rol) + '</div>';
     let html = '<div class="evento">' + foto(ev.imagen, "foto-evento") + '<p class="etiqueta">Día ' + fmt(s.dia, 0) + ' de la misión</p>' +
       '<h2>' + ev.titulo + '</h2>' + quien + '<p>' + ev.descripcion + '</p>' +
+      (ev.id === "incendio" ? casoRealEonet("i") : (ev.id === "erupcion" ? casoRealEonet("v") : "")) +
       '<div class="paz-dice"><div class="mini-avatar">' + avatarPaz() + '</div><p><b>Ingeniera Paz:</b> ' + ev.paz + '</p></div>' +
       '<div class="opciones-evento">';
     ev.opciones.forEach(function (op, i) {
@@ -1736,6 +2076,7 @@
         : tablaRecords({ modo: "completa", escenario: estado.escenario, dificultad: estado.dificultad, titulo: "Salón de la fama de esta misión" });
     }
 
+    html += tarjetaPruebaFinal();
     const preguntas = r.escenario.preguntas.concat(DATOS.preguntasReflexion);
     html += '<div class="tarjeta reflexion"><h3>' + ic("pregunta") + ' Para pensar más profundo</h3><ol>' + preguntas.map(function (p) { return "<li>" + p + "</li>"; }).join("") + '</ol></div>';
 
@@ -1869,7 +2210,18 @@
       case "estacion": entrarEstacion(Hangar.estaciones().find(function (x) { return x.id === el.dataset.id; })); break;
       case "irFase": irAFase(Number(el.dataset.fase)); break;
       case "menuJugar": estado.modo = "individual"; estado.vistaInicio = "jugar"; dibujarFase(); window.scrollTo(0, 0); break;
-      case "menuModos": estado.vistaInicio = "modos"; dibujarFase(); window.scrollTo(0, 0); break;
+      case "menuModos": estado.vistaInicio = "modos"; dibujarFase(); window.scrollTo(0, 0); if (!leerJSON(CLAVE_TUTORIAL, false)) abrirTutorial(0); break;
+      case "demo": cerrarModal(); iniciarDemo(); break;
+      case "demoSiguiente": siguientePasoDemo(); break;
+      case "demoSalir": detenerDemo(); estado.vistaInicio = "menu"; irAFase(0); break;
+      case "evaluacion": abrirEvaluacion(); break;
+      case "empezarEval": empezarEval(el.dataset.tipo); break;
+      case "respEval": responderEval(Number(el.dataset.i)); break;
+      case "resultadosCurso": resultadosCurso(); break;
+      case "copiarResultados": copiarResultados(); break;
+      case "borrarResultados": if (confirm("¿Borrar todas las pruebas guardadas en este dispositivo? No se puede deshacer.")) { try { localStorage.removeItem(CLAVE_EVAL); } catch (e) { /* nada */ } resultadosCurso(); } break;
+      case "tutorial": abrirTutorial(Number(el.dataset.paso || 0)); break;
+      case "tutorialFin": try { localStorage.setItem(CLAVE_TUTORIAL, "true"); } catch (e) { /* nada */ } cerrarModal(); break;
       case "elegirModoJuego": {
         const id = el.dataset.id;
         estado.vistaInicio = id === "completa" ? "jugar" : id;
@@ -1890,6 +2242,9 @@
       case "creditos": abrirCreditos(); break;
       case "porque": abrirPorQue(el.dataset.clave); break;
       case "fuentes": abrirFuentes(false); break;
+      case "datosNasa": abrirDatosNasa(); break;
+      case "verCalculos": verCalculos(); break;
+      case "realismo": abrirRealismo(); break;
       case "fuentesEscenario": abrirFuentes(true); break;
       case "cerrarModal": cerrarModal(); break;
       case "cerrarPaz": siguientePaz(); break;
@@ -2043,6 +2398,9 @@
       if (estado.fase !== 5) dibujarFase();          // activa o quita el 3D de la pantalla actual
     }
     else if (t.id === "op-silencio") { opciones.silencio = t.checked; guardarOpciones(); }
+    else if (t.id === "op-texto") { opciones.tamanoTexto = t.value; guardarOpciones(); }
+    else if (t.id === "op-contraste") { opciones.altoContraste = t.checked; guardarOpciones(); }
+    else if (t.id === "op-daltonismo") { opciones.daltonismo = t.checked; guardarOpciones(); if (estado.fase !== 5) dibujarFase(); }
     else if (t.id === "op-voz") { opciones.vozActiva = t.checked; guardarOpciones(); }
     else if (t.id === "op-pista") { opciones.pista = t.value; guardarOpciones(); ponerMusica(); }
     else if (t.id === "op-efectos") Sonido.efecto("exitoCorto");      // muestra cómo suena el nuevo volumen
@@ -2090,6 +2448,8 @@
   window.addEventListener("resize", dibujarEstrellas);
   construirPanel();
   irAFase(0);
+  // index.html?demo=1 abre directamente la demo (útil para presentar)
+  if (/[?&]demo=1/.test(location.search)) setTimeout(iniciarDemo, 800);
 
   // Solo en prueba.html (ambiente de prueba): atajos para el panel de pruebas (js/prueba.js)
   if (window.MODO_PRUEBA) {
